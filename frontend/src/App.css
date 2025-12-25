@@ -1,34 +1,270 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
-}
+/* Touré Family Recipe App - Component Styles */
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
-
-.App-header {
-    background-color: #0f0f10;
+/* Layout */
+.app-container {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+/* Navigation */
+.nav-link {
+    position: relative;
+    padding: 0.5rem 1rem;
+    transition: color 0.2s ease;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: hsl(14, 77%, 62%);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+    width: 100%;
+}
+
+/* Recipe Grid */
+.recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+    .recipe-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .recipe-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+}
+
+/* Photo Upload Zone */
+.photo-upload-zone {
+    border: 2px dashed hsl(30, 10%, 80%);
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: hsl(36, 33%, 98%);
+}
+
+.photo-upload-zone:hover {
+    border-color: hsl(14, 77%, 62%);
+    background: hsl(36, 33%, 96%);
+}
+
+.photo-upload-zone.dragging {
+    border-color: hsl(14, 77%, 62%);
+    background: hsla(14, 77%, 62%, 0.05);
+}
+
+/* Photo Preview Grid */
+.photo-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.75rem;
+}
+
+.photo-preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-preview-item .remove-btn {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: calc(10px + 2vmin);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.photo-preview-item:hover .remove-btn {
+    opacity: 1;
+}
+
+/* Ingredient List */
+.ingredient-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid hsl(30, 10%, 92%);
+}
+
+.ingredient-item:last-child {
+    border-bottom: none;
+}
+
+/* Difficulty Badge */
+.difficulty-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.difficulty-easy {
+    background: hsl(145, 25%, 90%);
+    color: hsl(145, 25%, 35%);
+}
+
+.difficulty-medium {
+    background: hsl(45, 90%, 90%);
+    color: hsl(45, 90%, 30%);
+}
+
+.difficulty-hard {
+    background: hsl(0, 70%, 92%);
+    color: hsl(0, 70%, 45%);
+}
+
+/* Category Tags */
+.category-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: hsl(145, 25%, 92%);
+    color: hsl(145, 25%, 30%);
+    transition: all 0.2s ease;
+}
+
+.category-tag:hover {
+    background: hsl(145, 25%, 35%);
     color: white;
 }
 
-.App-link {
-    color: #61dafb;
+.category-tag.active {
+    background: hsl(145, 25%, 35%);
+    color: white;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
+/* Auth Forms */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, hsl(36, 33%, 97%) 0%, hsl(36, 30%, 94%) 100%);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-state-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: hsl(36, 20%, 92%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsl(30, 5%, 50%);
+}
+
+/* Loading Skeleton */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        hsl(36, 20%, 92%) 25%,
+        hsl(36, 20%, 96%) 50%,
+        hsl(36, 20%, 92%) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 0.5rem;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
     }
-    to {
-        transform: rotate(360deg);
+    100% {
+        background-position: -200% 0;
     }
+}
+
+/* Mobile menu */
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 280px;
+    background: white;
+    z-index: 50;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-menu.open {
+    transform: translateX(0);
+}
+
+.mobile-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-menu-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
 }
