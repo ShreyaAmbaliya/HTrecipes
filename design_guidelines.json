@@ -1,0 +1,150 @@
+{
+  "brand_identity": {
+    "name": "Touré Family Recipes",
+    "core_values": ["Heritage", "Warmth", "Generosity", "Flavor"],
+    "voice": "Inviting, nostalgic, encouraging, and appetizing.",
+    "aesthetic_archetype": "Organic & Earthy (The Modern Heirloom)",
+    "emotional_goal": "To make every digital interaction feel like passing a handwritten recipe card across the kitchen table."
+  },
+  "design_system": {
+    "colors": {
+      "palette_name": "Spice & Linen",
+      "base": {
+        "background": "36 33% 97%", 
+        "foreground": "30 10% 20%",
+        "card": "0 0% 100%",
+        "card_foreground": "30 10% 20%",
+        "popover": "0 0% 100%",
+        "popover_foreground": "30 10% 20%",
+        "primary": "14 77% 62%",
+        "primary_foreground": "36 33% 97%",
+        "secondary": "145 25% 35%",
+        "secondary_foreground": "0 0% 98%",
+        "muted": "36 20% 90%",
+        "muted_foreground": "30 5% 45%",
+        "accent": "45 90% 60%",
+        "accent_foreground": "30 10% 20%",
+        "destructive": "0 84.2% 60.2%",
+        "destructive_foreground": "0 0% 98%",
+        "border": "30 10% 85%",
+        "input": "30 10% 85%",
+        "ring": "14 77% 62%"
+      },
+      "usage_rules": [
+        "NEVER use pure black (#000000). Use the Warm Charcoal (foreground) instead.",
+        "Background is NOT white. It is 'Linen' (hsl(36, 33%, 97%)).",
+        "Primary color (Terracotta) is for high-priority actions (Save, Cook, Upload).",
+        "Secondary color (Sage Green) is for tags, nature elements, and success states.",
+        "Accent color (Mustard) is for 'Chef's Tips' or highlighting special ingredients."
+      ]
+    },
+    "typography": {
+      "font_family": {
+        "headings": "\"Playfair Display\", serif",
+        "body": "\"Manrope\", sans-serif",
+        "mono": "\"JetBrains Mono\", monospace"
+      },
+      "google_fonts_url": "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap",
+      "scale": {
+        "h1": "text-5xl md:text-6xl font-serif tracking-tight leading-tight",
+        "h2": "text-4xl md:text-5xl font-serif tracking-tight",
+        "h3": "text-2xl md:text-3xl font-serif font-medium",
+        "body_lg": "text-lg leading-relaxed font-sans",
+        "body_base": "text-base leading-relaxed font-sans text-muted-foreground",
+        "caption": "text-sm font-medium tracking-wide uppercase text-muted-foreground"
+      }
+    },
+    "spacing": {
+      "scale": "Generous",
+      "container_padding": "p-6 md:p-12 lg:p-20",
+      "section_gap": "gap-12 md:gap-24",
+      "item_gap": "gap-6",
+      "radius": {
+        "default": "0.75rem",
+        "sm": "0.5rem",
+        "lg": "1rem",
+        "full": "9999px"
+      }
+    },
+    "visual_enhancers": {
+      "shadows": "shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow duration-300",
+      "borders": "border border-border/60",
+      "glassmorphism": "bg-white/80 backdrop-blur-md border-white/20 shadow-sm",
+      "textures": "Use a subtle grain overlay on the main background if possible to enhance the 'paper' feel."
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg font-serif transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
+      "secondary": "rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 px-6 py-4 font-sans",
+      "outline": "rounded-full border-2 border-primary text-primary hover:bg-primary/5 px-6 py-4 font-sans font-bold tracking-wide",
+      "ghost": "rounded-lg hover:bg-muted text-foreground px-4 py-2 font-medium"
+    },
+    "cards": {
+      "recipe_card": "group relative overflow-hidden rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-300",
+      "recipe_image_wrapper": "aspect-[4/5] w-full overflow-hidden bg-muted",
+      "recipe_image": "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110",
+      "recipe_content": "p-6 flex flex-col gap-3"
+    },
+    "inputs": {
+      "base": "rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/70",
+      "label": "text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2 block"
+    }
+  },
+  "layouts": {
+    "grid_system": {
+      "feed": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12",
+      "detail": "grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start"
+    },
+    "detail_page": {
+      "hero_section": "col-span-full lg:col-span-7 relative h-[60vh] lg:h-[85vh] rounded-3xl overflow-hidden",
+      "content_section": "col-span-full lg:col-span-5 flex flex-col gap-10 py-8"
+    }
+  },
+  "assets": {
+    "images": {
+      "hero_cooking": {
+        "url": "https://images.unsplash.com/photo-1713942589752-6c6bb58ca8b6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwyfHxoYXBweSUyMGZhbWlseSUyMGNvb2tpbmclMjB0b2dldGhlciUyMGtpdGNoZW58ZW58MHx8fHwxNzY2NjkzMDg2fDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Mother and son cooking cookies together",
+        "usage": "Landing page hero, Auth page background"
+      },
+      "recipe_placeholders": [
+        {
+          "url": "https://images.unsplash.com/photo-1704915192325-e06666dba8c1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwyfHxkZWxpY2lvdXMlMjBob21lJTIwY29va2VkJTIwbWVhbCUyMGZhbWlseSUyMHN0eWxlfGVufDB8fHx8MTc2NjY5MzA4Mnww&ixlib=rb-4.1.0&q=85",
+          "alt": "Family style dinner feast",
+          "category": "Main Course"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1572319236705-fef19d70e0c9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwyfHxmcmVzaCUyMGluZ3JlZGllbnRzJTIwa2l0Y2hlbiUyMGZsYXRsYXl8ZW58MHx8fHwxNzY2NjkzMDg0fDA&ixlib=rb-4.1.0&q=85",
+          "alt": "Fresh salsa ingredients",
+          "category": "Appetizer/Ingredients"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1627955280978-f54fff2f316a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxkZWxpY2lvdXMlMjBob21lJTIwY29va2VkJTIwbWVhbCUyMGZhbWlseSUyMHN0eWxlfGVufDB8fHx8MTc2NjY5MzA4Mnww&ixlib=rb-4.1.0&q=85",
+          "alt": "Burger and fries plate",
+          "category": "Comfort Food"
+        }
+      ],
+      "avatars": [
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64",
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64"
+      ]
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "Stroke width 1.5px (Light/Elegant)",
+      "preferred_icons": ["ChefHat", "Utensils", "Heart", "Camera", "Clock", "Users", "Flame"]
+    }
+  },
+  "universal_guidelines": [
+    "DO NOT use 'Inter' for headings. Use 'Playfair Display'.",
+    "DO NOT use pure white backgrounds. Use the 'Linen' off-white.",
+    "Always add 'data-testid' to interactive elements.",
+    "Use 'sonner' for toasts.",
+    "Images must have 'object-cover' and rounded corners.",
+    "Buttons should feel tactile (slight shadow, scale on press).",
+    "Forms should be clean and spacious, not cramped.",
+    "Mobile-first: Ensure touch targets are at least 44px."
+  ],
+  "instructions_to_main_agent": "You are building the Touré Family Recipe App. Follow the 'Spice & Linen' design system strictly. Use the provided image URLs for placeholders. Implement the 'Bento' grid for the recipe feed. Ensure the 'Add Recipe' flow is intuitive and uses the camera icon prominently. Use Shadcn components but override their styles to match the rounded, warm aesthetic defined here."
+}
