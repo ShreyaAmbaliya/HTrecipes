@@ -276,6 +276,44 @@ async def get_categories():
     all_cats = list(set(default_categories + categories))
     return sorted(all_cats)
 
+# ===================== COMMENT ROUTES =====================
+
+@api_router.post("/recipes/{recipe_id}/comments", response_model=CommentResponse)
+async def create_comment(recipe_id: str, comment_data: CommentCreate, user: dict = Depends(get_current_user)):
+    # Verify recipe exists
+    recipe = await db.recipes.find_one({"id": recipe_id})
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    
+    comment_id = str(uuid.uuid4())
+    comment_doc = {
+        "id": comment_id,
+        "recipe_id": recipe_id,
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "text": comment_data.text,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.comments.insert_one(comment_doc)
+    
+    return CommentResponse(**{k: v for k, v in comment_doc.items() if k != "_id"})
+
+@api_router.get("/recipes/{recipe_id}/comments", response_model=List[CommentResponse])
+async def get_comments(recipe_id: str):
+    comments = await db.comments.find({"recipe_id": recipe_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return [CommentResponse(**c) for c in comments]
+
+@api_router.delete("/comments/{comment_id}")
+async def delete_comment(comment_id: str, user: dict = Depends(get_current_user)):
+    comment = await db.comments.find_one({"id": comment_id}, {"_id": 0})
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
+    
+    await db.comments.delete_one({"id": comment_id})
+    return {"message": "Comment deleted successfully"}
+
 # ===================== HEALTH CHECK =====================
 
 @api_router.get("/")
