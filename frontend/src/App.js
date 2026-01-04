@@ -1804,7 +1804,6 @@ const CookbookPage = () => {
 };
 
 // Import useParams
-import { useParams } from "react-router-dom";
 
 function App() {
   return (
