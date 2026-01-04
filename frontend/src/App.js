@@ -511,9 +511,39 @@ const Navigation = () => {
             <BookOpen className="w-5 h-5 text-primary" />
             <span className="font-medium">Family Cookbook</span>
           </Link>
+          <Link 
+            to="/settings" 
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
+          >
+            <Settings className="w-5 h-5 text-primary" />
+            <span className="font-medium">Profile Settings</span>
+          </Link>
           <div className="pt-4 border-t border-border mt-4">
-            <div className="px-3 py-2 text-sm text-muted-foreground">Signed in as</div>
-            <div className="px-3 py-2 font-medium">{user.name}</div>
+            <div className="flex items-center gap-3 px-3 py-2">
+              {user.avatar ? (
+                <img src={user.avatar} alt={getDisplayName()} className="w-10 h-10 rounded-full object-cover border-2 border-border" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-lg font-semibold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
+                </div>
+              )}
+              <div>
+                <div className="font-medium">{getDisplayName()}</div>
+                <div className="text-xs text-muted-foreground">{user.email}</div>
+              </div>
+            </div>
+            {unreadCount > 0 && (
+              <Link 
+                to="/" 
+                onClick={() => { toggleNotifications(); setMobileMenuOpen(false); }}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
+              >
+                <Bell className="w-5 h-5 text-primary" />
+                <span className="font-medium">Notifications</span>
+                <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">{unreadCount}</span>
+              </Link>
+            )}
             <button 
               onClick={toggleTheme}
               className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted w-full text-left"
