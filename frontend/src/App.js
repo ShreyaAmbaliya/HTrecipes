@@ -1949,6 +1949,175 @@ const RecipeDetailPage = () => {
   );
 };
 
+// Settings Page (Profile Management)
+const SettingsPage = () => {
+  const { user, token, updateUser, getDisplayName } = useAuth();
+  const [nickname, setNickname] = useState(user?.nickname || "");
+  const [avatar, setAvatar] = useState(user?.avatar || "");
+  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAvatar(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await axios.put(`${API}/auth/profile`, {
+        nickname: nickname.trim() || null,
+        avatar: avatar || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      updateUser(response.data);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update profile");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="settings-page">
+      <Navigation />
+      
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Profile Settings</h1>
+          <p className="text-muted-foreground">Customize how you appear to the family</p>
+        </div>
+
+        <div className="space-y-8 animate-slide-up">
+          {/* Avatar Section */}
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Profile Picture</h3>
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  {avatar ? (
+                    <img 
+                      src={avatar} 
+                      alt="Profile" 
+                      className="w-24 h-24 rounded-full object-cover border-4 border-border"
+                      data-testid="avatar-preview"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-border">
+                      <span className="text-3xl font-bold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <label className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors">
+                    <Upload className="w-4 h-4" />
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleAvatarUpload}
+                      data-testid="avatar-input"
+                    />
+                  </label>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-2">Upload a photo to personalize your profile</p>
+                  {avatar && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setAvatar("")}
+                      className="rounded-full"
+                      data-testid="remove-avatar-btn"
+                    >
+                      Remove photo
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Nickname Section */}
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Display Name</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Full Name</Label>
+                  <p className="text-foreground font-medium">{user?.name}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nickname" className="text-sm text-muted-foreground">Nickname (optional)</Label>
+                  <Input
+                    id="nickname"
+                    placeholder="Enter a nickname..."
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    className="rounded-xl border-2 border-border/50 max-w-sm"
+                    data-testid="nickname-input"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your nickname will be shown instead of your full name on recipes and comments.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Info */}
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Account Information</h3>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Email</Label>
+                  <p className="text-foreground">{user?.email}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Member Since</Label>
+                  <p className="text-foreground">
+                    {new Date(user?.created_at).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <div className="flex gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate(-1)}
+              className="rounded-full px-6"
+              data-testid="settings-cancel-btn"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-full bg-primary text-primary-foreground px-8"
+              data-testid="settings-save-btn"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Profile Page (My Recipes)
 const ProfilePage = () => {
   const [recipes, setRecipes] = useState([]);
