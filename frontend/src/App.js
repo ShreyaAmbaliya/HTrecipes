@@ -1632,6 +1632,7 @@ function App() {
             <Route path="/add-recipe" element={<ProtectedRoute><AddRecipePage /></ProtectedRoute>} />
             <Route path="/recipe/:id" element={<ProtectedRoute><RecipeDetailPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/cookbook" element={<ProtectedRoute><CookbookPage /></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-center" richColors />
