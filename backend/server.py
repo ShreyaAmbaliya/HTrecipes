@@ -263,7 +263,7 @@ async def get_categories():
 
 @api_router.get("/")
 async def root():
-    return {"message": "Touré Family Recipe API"}
+    return {"message": "Honor Touré Family Recipe API"}
 
 @api_router.get("/health")
 async def health():
