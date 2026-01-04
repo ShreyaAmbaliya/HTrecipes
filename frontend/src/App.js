@@ -220,6 +220,7 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
 // Navigation Component
 const Navigation = () => {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
