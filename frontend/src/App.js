@@ -2625,6 +2625,7 @@ function App() {
               <Route path="/recipe/:id" element={<ProtectedRoute><RecipeDetailPage /></ProtectedRoute>} />
               <Route path="/recipe/:id/edit" element={<ProtectedRoute><EditRecipePage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/cookbook" element={<ProtectedRoute><CookbookPage /></ProtectedRoute>} />
             </Routes>
           </BrowserRouter>
