@@ -1243,6 +1243,381 @@ const ProfilePage = () => {
   );
 };
 
+// Family Cookbook Page with PDF Export
+const CookbookPage = () => {
+  const [recipes, setRecipes] = useState([]);
+  const [selectedRecipes, setSelectedRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const { token } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchAllRecipes();
+  }, []);
+
+  const fetchAllRecipes = async () => {
+    try {
+      const response = await axios.get(`${API}/recipes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRecipes(response.data);
+    } catch (error) {
+      toast.error("Failed to load recipes");
+    }
+    setLoading(false);
+  };
+
+  const toggleRecipeSelection = (recipeId) => {
+    setSelectedRecipes(prev => 
+      prev.includes(recipeId) 
+        ? prev.filter(id => id !== recipeId)
+        : [...prev, recipeId]
+    );
+  };
+
+  const selectAll = () => {
+    if (selectedRecipes.length === recipes.length) {
+      setSelectedRecipes([]);
+    } else {
+      setSelectedRecipes(recipes.map(r => r.id));
+    }
+  };
+
+  const generatePDF = async () => {
+    if (selectedRecipes.length === 0) {
+      toast.error("Please select at least one recipe");
+      return;
+    }
+
+    setGenerating(true);
+    toast.info("Generating your cookbook...");
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+
+      // Cover Page
+      doc.setFillColor(248, 245, 241); // Linen background
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      
+      // Decorative border
+      doc.setDrawColor(218, 127, 96); // Terracotta
+      doc.setLineWidth(2);
+      doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+      doc.setLineWidth(0.5);
+      doc.rect(15, 15, pageWidth - 30, pageHeight - 30);
+
+      // Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(36);
+      doc.setTextColor(74, 58, 51); // Warm charcoal
+      doc.text("Honor Touré", pageWidth / 2, 80, { align: "center" });
+      doc.setFontSize(28);
+      doc.text("Family Cookbook", pageWidth / 2, 100, { align: "center" });
+      
+      // Decorative line
+      doc.setDrawColor(74, 122, 94); // Sage
+      doc.setLineWidth(1);
+      doc.line(60, 115, pageWidth - 60, 115);
+      
+      // Subtitle
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(14);
+      doc.setTextColor(128, 118, 110);
+      doc.text("Recipes passed down with love", pageWidth / 2, 135, { align: "center" });
+      
+      // Recipe count
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(`${selectedRecipes.length} cherished recipes`, pageWidth / 2, 155, { align: "center" });
+      
+      // Date
+      const today = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      doc.text(`Created on ${today}`, pageWidth / 2, 175, { align: "center" });
+      
+      // Footer quote
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(11);
+      doc.setTextColor(128, 118, 110);
+      doc.text('"The fondest memories are made when gathered around the table."', pageWidth / 2, pageHeight - 40, { align: "center" });
+
+      // Table of Contents
+      doc.addPage();
+      doc.setFillColor(248, 245, 241);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.setTextColor(74, 58, 51);
+      doc.text("Table of Contents", pageWidth / 2, 30, { align: "center" });
+      
+      doc.setDrawColor(218, 127, 96);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 40, pageWidth - margin, 40);
+
+      let tocY = 55;
+      const selectedRecipesList = recipes.filter(r => selectedRecipes.includes(r.id));
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      selectedRecipesList.forEach((recipe, index) => {
+        if (tocY > pageHeight - 30) {
+          doc.addPage();
+          doc.setFillColor(248, 245, 241);
+          doc.rect(0, 0, pageWidth, pageHeight, 'F');
+          tocY = 30;
+        }
+        doc.setTextColor(74, 58, 51);
+        doc.text(`${index + 1}. ${recipe.title}`, margin, tocY);
+        doc.setTextColor(128, 118, 110);
+        doc.text(`by ${recipe.author_name}`, margin + 10, tocY + 5);
+        tocY += 18;
+      });
+
+      // Recipe Pages
+      for (const recipe of selectedRecipesList) {
+        doc.addPage();
+        doc.setFillColor(248, 245, 241);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        
+        let y = 25;
+
+        // Recipe title
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(74, 58, 51);
+        const titleLines = doc.splitTextToSize(recipe.title, contentWidth);
+        doc.text(titleLines, margin, y);
+        y += titleLines.length * 10 + 5;
+
+        // Category badge
+        doc.setFillColor(74, 122, 94);
+        doc.roundedRect(margin, y, 40, 8, 2, 2, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text(recipe.category.toUpperCase(), margin + 4, y + 5.5);
+        
+        // Difficulty
+        const diffColors = {
+          easy: [74, 122, 94],
+          medium: [218, 175, 96],
+          hard: [218, 127, 96]
+        };
+        const dc = diffColors[recipe.difficulty] || diffColors.easy;
+        doc.setFillColor(dc[0], dc[1], dc[2]);
+        doc.roundedRect(margin + 45, y, 25, 8, 2, 2, 'F');
+        doc.text(recipe.difficulty.toUpperCase(), margin + 49, y + 5.5);
+        y += 15;
+
+        // Meta info
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(128, 118, 110);
+        doc.text(`By ${recipe.author_name}  •  ${recipe.cooking_time} min  •  ${recipe.servings} servings`, margin, y);
+        y += 15;
+
+        // Decorative line
+        doc.setDrawColor(218, 127, 96);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+
+        // Ingredients section
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(74, 58, 51);
+        doc.text("Ingredients", margin, y);
+        y += 8;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(74, 58, 51);
+        
+        for (const ingredient of recipe.ingredients) {
+          if (y > pageHeight - 30) {
+            doc.addPage();
+            doc.setFillColor(248, 245, 241);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            y = 25;
+          }
+          doc.setFillColor(218, 127, 96);
+          doc.circle(margin + 2, y - 1.5, 1.5, 'F');
+          const ingredientLines = doc.splitTextToSize(ingredient, contentWidth - 10);
+          doc.text(ingredientLines, margin + 8, y);
+          y += ingredientLines.length * 5 + 3;
+        }
+        y += 8;
+
+        // Instructions section
+        if (y > pageHeight - 60) {
+          doc.addPage();
+          doc.setFillColor(248, 245, 241);
+          doc.rect(0, 0, pageWidth, pageHeight, 'F');
+          y = 25;
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(74, 58, 51);
+        doc.text("Instructions", margin, y);
+        y += 8;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        
+        const instructionLines = doc.splitTextToSize(recipe.instructions, contentWidth);
+        for (const line of instructionLines) {
+          if (y > pageHeight - 20) {
+            doc.addPage();
+            doc.setFillColor(248, 245, 241);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            y = 25;
+          }
+          doc.text(line, margin, y);
+          y += 5;
+        }
+      }
+
+      // Save PDF
+      doc.save("Honor_Toure_Family_Cookbook.pdf");
+      toast.success("Cookbook generated successfully!");
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("Failed to generate cookbook");
+    }
+    setGenerating(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="cookbook-page">
+      <Navigation />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Family Cookbook</h1>
+              <p className="text-muted-foreground">Select recipes to create a printable PDF cookbook</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={selectAll}
+                className="rounded-full"
+                data-testid="select-all-btn"
+              >
+                {selectedRecipes.length === recipes.length ? "Deselect All" : "Select All"}
+              </Button>
+              <Button
+                onClick={generatePDF}
+                disabled={selectedRecipes.length === 0 || generating}
+                className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20"
+                data-testid="generate-pdf-btn"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {generating ? "Generating..." : `Export PDF (${selectedRecipes.length})`}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Selection Info Banner */}
+        {selectedRecipes.length > 0 && (
+          <div className="mb-6 p-4 rounded-2xl bg-primary/10 border border-primary/20 animate-fade-in" data-testid="selection-banner">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <span className="font-medium text-foreground">
+                  {selectedRecipes.length} recipe{selectedRecipes.length !== 1 ? 's' : ''} selected for your cookbook
+                </span>
+              </div>
+              <button 
+                onClick={() => setSelectedRecipes([])}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="recipe-grid">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="rounded-2xl overflow-hidden">
+                <div className="skeleton aspect-[4/5]" />
+                <div className="p-5 space-y-3">
+                  <div className="skeleton h-6 w-3/4" />
+                  <div className="skeleton h-4 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : recipes.length > 0 ? (
+          <div className="recipe-grid" data-testid="cookbook-grid">
+            {recipes.map((recipe, index) => (
+              <div 
+                key={recipe.id} 
+                className="animate-fade-in relative" 
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                {/* Selection Checkbox */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleRecipeSelection(recipe.id);
+                  }}
+                  className={`absolute top-3 left-3 z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                    selectedRecipes.includes(recipe.id)
+                      ? 'bg-primary border-primary text-white'
+                      : 'bg-white/80 border-border hover:border-primary'
+                  }`}
+                  data-testid={`select-recipe-${recipe.id}`}
+                >
+                  {selectedRecipes.includes(recipe.id) && (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+                <RecipeCard 
+                  recipe={recipe} 
+                  onClick={() => navigate(`/recipe/${recipe.id}`)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state" data-testid="empty-cookbook">
+            <div className="empty-state-icon">
+              <BookOpen className="w-10 h-10" />
+            </div>
+            <h3 className="font-serif text-2xl font-semibold mb-2">No recipes to compile</h3>
+            <p className="text-muted-foreground mb-6">Add some recipes first to create your family cookbook!</p>
+            <Button 
+              onClick={() => navigate("/add-recipe")}
+              className="rounded-full bg-primary text-primary-foreground"
+              data-testid="cookbook-add-recipe-btn"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Recipe
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Import useParams
 import { useParams } from "react-router-dom";
 
