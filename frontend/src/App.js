@@ -82,7 +82,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Family Logo Component - HT Monogram with Spoon & Fork
+// Family Logo Component - HT Monogram with Crossed Spoon & Fork (French Creole Style)
 const FamilyLogo = ({ size = "md", showText = true }) => {
   const sizes = {
     sm: { container: "w-10 h-10", text: "text-lg" },
@@ -96,72 +96,96 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
     <div className="flex items-center gap-3">
       <div className={`${s.container} relative`}>
         <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          {/* Outer decorative ring */}
           <defs>
-            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="hsl(14, 77%, 62%)" />
-              <stop offset="50%" stopColor="hsl(14, 77%, 55%)" />
-              <stop offset="100%" stopColor="hsl(145, 25%, 35%)" />
+            {/* Caribbean-inspired gradient */}
+            <linearGradient id="creoleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#E07B4C" />
+              <stop offset="40%" stopColor="#C66B3D" />
+              <stop offset="100%" stopColor="#8B5A3C" />
             </linearGradient>
-            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            {/* Gold/Bronze for utensils */}
+            <linearGradient id="utensilGold" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#D4A574" />
-              <stop offset="50%" stopColor="#B8956E" />
-              <stop offset="100%" stopColor="#8B7355" />
+              <stop offset="50%" stopColor="#C49660" />
+              <stop offset="100%" stopColor="#A67C4E" />
+            </linearGradient>
+            {/* Decorative flourish gradient */}
+            <linearGradient id="flourishGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#4A7A5E" />
+              <stop offset="100%" stopColor="#3D6B4F" />
             </linearGradient>
           </defs>
           
-          {/* Background circle with warm color */}
-          <circle cx="50" cy="50" r="48" fill="url(#logoGradient)" />
-          <circle cx="50" cy="50" r="44" fill="hsl(36, 33%, 97%)" />
+          {/* Outer ring with warm Caribbean color */}
+          <circle cx="50" cy="50" r="48" fill="url(#creoleGradient)" />
           
-          {/* Decorative inner ring */}
-          <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(30, 10%, 85%)" strokeWidth="1" />
+          {/* Inner cream circle */}
+          <circle cx="50" cy="50" r="43" fill="#FDF8F3" />
           
-          {/* Spoon - left side, behind letters */}
-          <g transform="translate(50, 50) rotate(-35) translate(-50, -50)">
-            <ellipse cx="32" cy="25" rx="8" ry="11" fill="url(#goldGradient)" />
-            <rect x="29" y="32" width="6" height="40" rx="3" fill="url(#goldGradient)" />
+          {/* Decorative inner border */}
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#D4A574" strokeWidth="1.5" strokeDasharray="3 2" />
+          
+          {/* Crossed Spoon - from top-left to bottom-right */}
+          <g>
+            {/* Spoon bowl */}
+            <ellipse cx="25" cy="22" rx="9" ry="12" fill="url(#utensilGold)" transform="rotate(-45 25 22)" />
+            {/* Spoon handle */}
+            <rect x="30" y="28" width="5" height="45" rx="2.5" fill="url(#utensilGold)" transform="rotate(-45 50 50)" />
           </g>
           
-          {/* Fork - right side, behind letters */}
-          <g transform="translate(50, 50) rotate(35) translate(-50, -50)">
-            <rect x="62" y="18" width="2" height="12" rx="1" fill="url(#goldGradient)" />
-            <rect x="66" y="18" width="2" height="14" rx="1" fill="url(#goldGradient)" />
-            <rect x="70" y="18" width="2" height="12" rx="1" fill="url(#goldGradient)" />
-            <rect x="64" y="28" width="6" height="40" rx="3" fill="url(#goldGradient)" />
+          {/* Crossed Fork - from top-right to bottom-left */}
+          <g transform="rotate(90 50 50)">
+            {/* Fork tines */}
+            <rect x="22" y="14" width="2.5" height="14" rx="1" fill="url(#utensilGold)" transform="rotate(-45 25 22)" />
+            <rect x="26" y="14" width="2.5" height="16" rx="1" fill="url(#utensilGold)" transform="rotate(-45 28 22)" />
+            <rect x="30" y="14" width="2.5" height="14" rx="1" fill="url(#utensilGold)" transform="rotate(-45 31 22)" />
+            {/* Fork handle */}
+            <rect x="30" y="28" width="5" height="45" rx="2.5" fill="url(#utensilGold)" transform="rotate(-45 50 50)" />
           </g>
           
-          {/* H letter */}
+          {/* Center medallion for letters */}
+          <circle cx="50" cy="50" r="22" fill="#FDF8F3" stroke="url(#utensilGold)" strokeWidth="2" />
+          
+          {/* HT Monogram in French Creole script style */}
           <text 
-            x="36" 
-            y="62" 
-            fontFamily="'Playfair Display', serif" 
-            fontSize="32" 
-            fontWeight="700" 
-            fill="hsl(30, 10%, 20%)"
-          >H</text>
+            x="50" 
+            y="56" 
+            textAnchor="middle"
+            fontFamily="'Brush Script MT', 'Segoe Script', 'Bradley Hand', cursive" 
+            fontSize="28" 
+            fontWeight="400" 
+            fontStyle="italic"
+            fill="#5D3A2E"
+          >HT</text>
           
-          {/* T letter - slightly overlapping */}
-          <text 
-            x="52" 
-            y="62" 
-            fontFamily="'Playfair Display', serif" 
-            fontSize="32" 
-            fontWeight="700" 
-            fill="hsl(30, 10%, 20%)"
-          >T</text>
+          {/* Decorative flourishes - top */}
+          <path 
+            d="M 35 18 Q 50 12 65 18" 
+            fill="none" 
+            stroke="url(#flourishGradient)" 
+            strokeWidth="2" 
+            strokeLinecap="round"
+          />
           
-          {/* Small decorative accent at top */}
-          <circle cx="50" cy="12" r="3" fill="hsl(45, 90%, 60%)" />
+          {/* Decorative flourishes - bottom */}
+          <path 
+            d="M 35 82 Q 50 88 65 82" 
+            fill="none" 
+            stroke="url(#flourishGradient)" 
+            strokeWidth="2" 
+            strokeLinecap="round"
+          />
           
-          {/* Small decorative accents on sides */}
-          <circle cx="12" cy="50" r="2" fill="hsl(145, 25%, 35%)" />
-          <circle cx="88" cy="50" r="2" fill="hsl(145, 25%, 35%)" />
+          {/* Small decorative dots */}
+          <circle cx="50" cy="10" r="3" fill="#E8B339" />
+          <circle cx="50" cy="90" r="3" fill="#E8B339" />
+          <circle cx="10" cy="50" r="2" fill="#4A7A5E" />
+          <circle cx="90" cy="50" r="2" fill="#4A7A5E" />
         </svg>
       </div>
       {showText && (
         <div className="flex flex-col">
-          <span className={`font-serif ${s.text} font-bold text-foreground leading-tight`}>Honor Touré</span>
+          <span className={`font-serif ${s.text} font-bold text-foreground leading-tight italic`}>Honor Touré</span>
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Family Recipes</span>
         </div>
       )}
