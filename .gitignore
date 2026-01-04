@@ -85,3 +85,7 @@ frontend/node_modules/.cache/default-development/0.pack
 # (Production values are auto-injected during deployment)
 frontend/node_modules/.cache/default-development/8.pack
 frontend/node_modules/.cache/default-development/11.pack
+-e 
+# Environment files
+*.env
+*.env.*
