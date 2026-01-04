@@ -228,11 +228,87 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
 
 // Navigation Component
 const Navigation = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, getDisplayName, token } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (user && token) {
+      fetchUnreadCount();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, token]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await axios.get(`${API}/notifications/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUnreadCount(response.data.count);
+    } catch (error) {
+      console.error("Failed to fetch notification count");
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get(`${API}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications(response.data);
+    } catch (error) {
+      console.error("Failed to fetch notifications");
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      try {
+        await axios.put(`${API}/notifications/${notification.id}/read`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        setNotifications(prev => 
+          prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
+        );
+      } catch (error) {
+        console.error("Failed to mark notification as read");
+      }
+    }
+    
+    // Navigate to recipe if applicable
+    if (notification.recipe_id) {
+      navigate(`/recipe/${notification.recipe_id}`);
+      setShowNotifications(false);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.put(`${API}/notifications/read-all`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (error) {
+      console.error("Failed to mark all as read");
+    }
+  };
+
+  const toggleNotifications = () => {
+    if (!showNotifications) {
+      fetchNotifications();
+    }
+    setShowNotifications(!showNotifications);
+  };
 
   const handleLogout = () => {
     logout();
