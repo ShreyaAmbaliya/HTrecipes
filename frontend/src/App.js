@@ -82,31 +82,82 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Family Logo Component
+// Family Logo Component - HT Monogram with Spoon & Fork
 const FamilyLogo = ({ size = "md", showText = true }) => {
   const sizes = {
-    sm: { container: "w-10 h-10", icon: "w-5 h-5", text: "text-lg" },
-    md: { container: "w-12 h-12", icon: "w-6 h-6", text: "text-xl" },
-    lg: { container: "w-16 h-16", icon: "w-8 h-8", text: "text-2xl" },
-    xl: { container: "w-24 h-24", icon: "w-12 h-12", text: "text-3xl" }
+    sm: { container: "w-10 h-10", text: "text-lg" },
+    md: { container: "w-12 h-12", text: "text-xl" },
+    lg: { container: "w-16 h-16", text: "text-2xl" },
+    xl: { container: "w-24 h-24", text: "text-3xl" }
   };
   const s = sizes[size];
   
   return (
     <div className="flex items-center gap-3">
       <div className={`${s.container} relative`}>
-        {/* Outer ring with gradient */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-primary/80 to-secondary shadow-lg"></div>
-        {/* Inner circle */}
-        <div className="absolute inset-1 rounded-full bg-card flex items-center justify-center">
-          {/* Stylized "HT" monogram */}
-          <svg viewBox="0 0 40 40" className={`${s.icon} text-primary`} fill="currentColor">
-            <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" fontSize="18" fontWeight="700" fontFamily="Playfair Display, serif">HT</text>
-          </svg>
-        </div>
-        {/* Decorative dots */}
-        <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-accent"></div>
-        <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-secondary"></div>
+        <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          {/* Outer decorative ring */}
+          <defs>
+            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="hsl(14, 77%, 62%)" />
+              <stop offset="50%" stopColor="hsl(14, 77%, 55%)" />
+              <stop offset="100%" stopColor="hsl(145, 25%, 35%)" />
+            </linearGradient>
+            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#D4A574" />
+              <stop offset="50%" stopColor="#B8956E" />
+              <stop offset="100%" stopColor="#8B7355" />
+            </linearGradient>
+          </defs>
+          
+          {/* Background circle with warm color */}
+          <circle cx="50" cy="50" r="48" fill="url(#logoGradient)" />
+          <circle cx="50" cy="50" r="44" fill="hsl(36, 33%, 97%)" />
+          
+          {/* Decorative inner ring */}
+          <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(30, 10%, 85%)" strokeWidth="1" />
+          
+          {/* Spoon - left side, behind letters */}
+          <g transform="translate(50, 50) rotate(-35) translate(-50, -50)">
+            <ellipse cx="32" cy="25" rx="8" ry="11" fill="url(#goldGradient)" />
+            <rect x="29" y="32" width="6" height="40" rx="3" fill="url(#goldGradient)" />
+          </g>
+          
+          {/* Fork - right side, behind letters */}
+          <g transform="translate(50, 50) rotate(35) translate(-50, -50)">
+            <rect x="62" y="18" width="2" height="12" rx="1" fill="url(#goldGradient)" />
+            <rect x="66" y="18" width="2" height="14" rx="1" fill="url(#goldGradient)" />
+            <rect x="70" y="18" width="2" height="12" rx="1" fill="url(#goldGradient)" />
+            <rect x="64" y="28" width="6" height="40" rx="3" fill="url(#goldGradient)" />
+          </g>
+          
+          {/* H letter */}
+          <text 
+            x="36" 
+            y="62" 
+            fontFamily="'Playfair Display', serif" 
+            fontSize="32" 
+            fontWeight="700" 
+            fill="hsl(30, 10%, 20%)"
+          >H</text>
+          
+          {/* T letter - slightly overlapping */}
+          <text 
+            x="52" 
+            y="62" 
+            fontFamily="'Playfair Display', serif" 
+            fontSize="32" 
+            fontWeight="700" 
+            fill="hsl(30, 10%, 20%)"
+          >T</text>
+          
+          {/* Small decorative accent at top */}
+          <circle cx="50" cy="12" r="3" fill="hsl(45, 90%, 60%)" />
+          
+          {/* Small decorative accents on sides */}
+          <circle cx="12" cy="50" r="2" fill="hsl(145, 25%, 35%)" />
+          <circle cx="88" cy="50" r="2" fill="hsl(145, 25%, 35%)" />
+        </svg>
       </div>
       {showText && (
         <div className="flex flex-col">
