@@ -1106,6 +1106,366 @@ const AddRecipePage = () => {
   );
 };
 
+// Edit Recipe Page
+const EditRecipePage = () => {
+  const { id } = useParams();
+  const [formData, setFormData] = useState({
+    title: "",
+    ingredients: [""],
+    instructions: "",
+    story: "",
+    photos: [],
+    cooking_time: 30,
+    servings: 4,
+    category: "",
+    difficulty: "easy"
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { token, user } = useAuth();
+  const navigate = useNavigate();
+
+  const categories = ["Main Course", "Appetizer", "Dessert", "Soup", "Salad", "Breakfast", "Snack", "Beverage"];
+
+  useEffect(() => {
+    fetchRecipe();
+  }, [id]);
+
+  const fetchRecipe = async () => {
+    try {
+      const response = await axios.get(`${API}/recipes/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const recipe = response.data;
+      
+      // Check if user is the author
+      if (recipe.author_id !== user?.id) {
+        toast.error("You can only edit your own recipes");
+        navigate(`/recipe/${id}`);
+        return;
+      }
+      
+      setFormData({
+        title: recipe.title,
+        ingredients: recipe.ingredients.length > 0 ? recipe.ingredients : [""],
+        instructions: recipe.instructions,
+        story: recipe.story || "",
+        photos: recipe.photos || [],
+        cooking_time: recipe.cooking_time,
+        servings: recipe.servings,
+        category: recipe.category,
+        difficulty: recipe.difficulty
+      });
+    } catch (error) {
+      toast.error("Recipe not found");
+      navigate("/");
+    }
+    setLoading(false);
+  };
+
+  const handleAddIngredient = () => {
+    setFormData({ ...formData, ingredients: [...formData.ingredients, ""] });
+  };
+
+  const handleIngredientChange = (index, value) => {
+    const newIngredients = [...formData.ingredients];
+    newIngredients[index] = value;
+    setFormData({ ...formData, ingredients: newIngredients });
+  };
+
+  const handleRemoveIngredient = (index) => {
+    const newIngredients = formData.ingredients.filter((_, i) => i !== index);
+    setFormData({ ...formData, ingredients: newIngredients });
+  };
+
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFormData(prev => ({
+          ...prev,
+          photos: [...prev.photos, event.target.result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title || !formData.instructions || !formData.category) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const validIngredients = formData.ingredients.filter(i => i.trim());
+    if (validIngredients.length === 0) {
+      toast.error("Please add at least one ingredient");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await axios.put(`${API}/recipes/${id}`, {
+        ...formData,
+        ingredients: validIngredients,
+        story: formData.story || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Recipe updated successfully!");
+      navigate(`/recipe/${id}`);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update recipe");
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <div className="skeleton h-10 w-1/2 mb-4" />
+          <div className="skeleton h-6 w-1/3 mb-8" />
+          <div className="space-y-6">
+            <div className="skeleton h-40 rounded-xl" />
+            <div className="skeleton h-12 rounded-xl" />
+            <div className="skeleton h-32 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="edit-recipe-page">
+      <Navigation />
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Edit Recipe</h1>
+          <p className="text-muted-foreground">Update your family recipe</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-8 animate-slide-up">
+          {/* Photos Section */}
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Photos</Label>
+            
+            <label className="block">
+              <div className="photo-upload-zone flex items-center justify-center gap-3" data-testid="edit-photo-upload-zone">
+                <Camera className="w-6 h-6 text-muted-foreground" />
+                <span className="text-muted-foreground">Add more photos</span>
+              </div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                multiple 
+                className="hidden" 
+                onChange={handlePhotoUpload}
+                data-testid="edit-photo-input"
+              />
+            </label>
+
+            {formData.photos.length > 0 && (
+              <div className="photo-preview-grid" data-testid="edit-photo-preview-grid">
+                {formData.photos.map((photo, index) => (
+                  <div key={index} className="photo-preview-item">
+                    <img src={photo} alt={`Recipe photo ${index + 1}`} />
+                    <button 
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="remove-btn"
+                      data-testid={`edit-remove-photo-${index}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Recipe Title *</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="rounded-xl border-2 border-border/50 bg-card px-4 py-3 text-lg focus:border-primary"
+              required
+              data-testid="edit-input-title"
+            />
+          </div>
+
+          {/* Category & Difficulty */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Category *</Label>
+              <Select 
+                value={formData.category} 
+                onValueChange={(value) => setFormData({ ...formData, category: value })}
+              >
+                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="edit-select-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Difficulty</Label>
+              <Select 
+                value={formData.difficulty} 
+                onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
+              >
+                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="edit-select-difficulty">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Time & Servings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="time" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Cooking Time (minutes)</Label>
+              <Input
+                id="time"
+                type="number"
+                min="1"
+                value={formData.cooking_time}
+                onChange={(e) => setFormData({ ...formData, cooking_time: parseInt(e.target.value) || 0 })}
+                className="rounded-xl border-2 border-border/50 h-12"
+                data-testid="edit-input-time"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="servings" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Servings</Label>
+              <Input
+                id="servings"
+                type="number"
+                min="1"
+                value={formData.servings}
+                onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 0 })}
+                className="rounded-xl border-2 border-border/50 h-12"
+                data-testid="edit-input-servings"
+              />
+            </div>
+          </div>
+
+          {/* Ingredients */}
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Ingredients *</Label>
+            <div className="space-y-3">
+              {formData.ingredients.map((ingredient, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    placeholder={`Ingredient ${index + 1}`}
+                    value={ingredient}
+                    onChange={(e) => handleIngredientChange(index, e.target.value)}
+                    className="rounded-xl border-2 border-border/50"
+                    data-testid={`edit-ingredient-${index}`}
+                  />
+                  {formData.ingredients.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      onClick={() => handleRemoveIngredient(index)}
+                      className="px-3"
+                      data-testid={`edit-remove-ingredient-${index}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleAddIngredient}
+              className="rounded-full"
+              data-testid="edit-add-ingredient-btn"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Ingredient
+            </Button>
+          </div>
+
+          {/* Instructions */}
+          <div className="space-y-2">
+            <Label htmlFor="instructions" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Instructions *</Label>
+            <Textarea
+              id="instructions"
+              value={formData.instructions}
+              onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+              className="rounded-xl border-2 border-border/50 min-h-[200px] resize-y"
+              required
+              data-testid="edit-input-instructions"
+            />
+          </div>
+
+          {/* Story (Optional) */}
+          <div className="space-y-2">
+            <Label htmlFor="story" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              The Story Behind This Recipe <span className="text-muted-foreground/60 normal-case">(optional)</span>
+            </Label>
+            <Textarea
+              id="story"
+              placeholder="Share the story of this recipe..."
+              value={formData.story}
+              onChange={(e) => setFormData({ ...formData, story: e.target.value })}
+              className="rounded-xl border-2 border-border/50 min-h-[120px] resize-y"
+              data-testid="edit-input-story"
+            />
+          </div>
+
+          {/* Submit */}
+          <div className="flex gap-4 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => navigate(`/recipe/${id}`)}
+              className="rounded-full px-8 py-6"
+              data-testid="edit-cancel-btn"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={saving}
+              className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg font-serif transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+              data-testid="edit-submit-btn"
+            >
+              {saving ? "Saving..." : "Update Recipe"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Recipe Detail Page
 const RecipeDetailPage = () => {
   const [recipe, setRecipe] = useState(null);
