@@ -1585,6 +1585,45 @@ const CookbookPage = () => {
           doc.text(line, margin, y);
           y += 5;
         }
+
+        // Recipe Story (if exists)
+        if (recipe.story) {
+          y += 10;
+          if (y > pageHeight - 60) {
+            doc.addPage();
+            doc.setFillColor(248, 245, 241);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            y = 25;
+          }
+
+          doc.setFont("helvetica", "bolditalic");
+          doc.setFontSize(12);
+          doc.setTextColor(218, 127, 96); // Terracotta
+          doc.text("The Story", margin, y);
+          y += 8;
+
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(10);
+          doc.setTextColor(74, 58, 51);
+          
+          const storyLines = doc.splitTextToSize(`"${recipe.story}"`, contentWidth);
+          for (const line of storyLines) {
+            if (y > pageHeight - 20) {
+              doc.addPage();
+              doc.setFillColor(248, 245, 241);
+              doc.rect(0, 0, pageWidth, pageHeight, 'F');
+              y = 25;
+            }
+            doc.text(line, margin, y);
+            y += 5;
+          }
+          
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(128, 118, 110);
+          y += 3;
+          doc.text(`— Shared by ${recipe.author_name}`, margin, y);
+        }
       }
 
       // Save PDF
