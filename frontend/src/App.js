@@ -1364,6 +1364,77 @@ const RecipeDetailPage = () => {
             </Card>
           </div>
         </div>
+
+        {/* Comments Section */}
+        <div className="max-w-3xl mt-12 animate-fade-in" data-testid="comments-section">
+          <h2 className="font-serif text-2xl font-semibold mb-6 flex items-center gap-2">
+            <MessageCircle className="w-6 h-6 text-primary" />
+            Family Comments ({comments.length})
+          </h2>
+          
+          {/* Add Comment Form */}
+          <form onSubmit={handleAddComment} className="mb-8">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Input
+                  placeholder="Share your thoughts about this recipe..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="rounded-xl border-2 border-border/50"
+                  data-testid="comment-input"
+                />
+              </div>
+              <Button 
+                type="submit" 
+                disabled={submittingComment || !newComment.trim()}
+                className="rounded-xl bg-primary text-primary-foreground"
+                data-testid="submit-comment-btn"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+          </form>
+
+          {/* Comments List */}
+          <div className="space-y-4">
+            {comments.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No comments yet. Be the first to share your thoughts!</p>
+            ) : (
+              comments.map((comment) => (
+                <div 
+                  key={comment.id} 
+                  className="p-4 rounded-xl bg-card border border-border/50"
+                  data-testid={`comment-${comment.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold text-foreground">{comment.user_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(comment.created_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-foreground">{comment.text}</p>
+                    </div>
+                    {user?.id === comment.user_id && (
+                      <button
+                        onClick={() => handleDeleteComment(comment.id)}
+                        className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                        data-testid={`delete-comment-${comment.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
