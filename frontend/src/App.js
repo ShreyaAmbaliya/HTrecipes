@@ -97,94 +97,89 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
       <div className={`${s.container} relative`}>
         <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            {/* Caribbean-inspired gradient */}
-            <linearGradient id="creoleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#E07B4C" />
-              <stop offset="40%" stopColor="#C66B3D" />
-              <stop offset="100%" stopColor="#8B5A3C" />
+            {/* Caribbean terracotta gradient */}
+            <linearGradient id="creoleRing" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#D4704A" />
+              <stop offset="100%" stopColor="#A65835" />
             </linearGradient>
-            {/* Gold/Bronze for utensils */}
-            <linearGradient id="utensilGold" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#D4A574" />
-              <stop offset="50%" stopColor="#C49660" />
-              <stop offset="100%" stopColor="#A67C4E" />
-            </linearGradient>
-            {/* Decorative flourish gradient */}
-            <linearGradient id="flourishGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#4A7A5E" />
-              <stop offset="100%" stopColor="#3D6B4F" />
+            {/* Antique gold for utensils */}
+            <linearGradient id="antiqueGold" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#C9A227" />
+              <stop offset="50%" stopColor="#B8860B" />
+              <stop offset="100%" stopColor="#996515" />
             </linearGradient>
           </defs>
           
-          {/* Outer ring with warm Caribbean color */}
-          <circle cx="50" cy="50" r="48" fill="url(#creoleGradient)" />
+          {/* Outer warm ring */}
+          <circle cx="50" cy="50" r="48" fill="url(#creoleRing)" />
           
-          {/* Inner cream circle */}
-          <circle cx="50" cy="50" r="43" fill="#FDF8F3" />
+          {/* Cream inner circle */}
+          <circle cx="50" cy="50" r="43" fill="#FBF7F2" />
           
-          {/* Decorative inner border */}
-          <circle cx="50" cy="50" r="40" fill="none" stroke="#D4A574" strokeWidth="1.5" strokeDasharray="3 2" />
-          
-          {/* Crossed Spoon - from top-left to bottom-right */}
-          <g>
+          {/* Crossed Spoon - diagonal from top-left to bottom-right */}
+          <g transform="rotate(-45 50 50)">
             {/* Spoon bowl */}
-            <ellipse cx="25" cy="22" rx="9" ry="12" fill="url(#utensilGold)" transform="rotate(-45 25 22)" />
+            <ellipse cx="50" cy="18" rx="7" ry="10" fill="url(#antiqueGold)" />
+            {/* Spoon neck */}
+            <rect x="47" y="26" width="6" height="8" fill="url(#antiqueGold)" />
             {/* Spoon handle */}
-            <rect x="30" y="28" width="5" height="45" rx="2.5" fill="url(#utensilGold)" transform="rotate(-45 50 50)" />
+            <rect x="48" y="32" width="4" height="50" rx="2" fill="url(#antiqueGold)" />
           </g>
           
-          {/* Crossed Fork - from top-right to bottom-left */}
-          <g transform="rotate(90 50 50)">
+          {/* Crossed Fork - diagonal from top-right to bottom-left */}
+          <g transform="rotate(45 50 50)">
             {/* Fork tines */}
-            <rect x="22" y="14" width="2.5" height="14" rx="1" fill="url(#utensilGold)" transform="rotate(-45 25 22)" />
-            <rect x="26" y="14" width="2.5" height="16" rx="1" fill="url(#utensilGold)" transform="rotate(-45 28 22)" />
-            <rect x="30" y="14" width="2.5" height="14" rx="1" fill="url(#utensilGold)" transform="rotate(-45 31 22)" />
+            <rect x="43" y="14" width="2.5" height="12" rx="1" fill="url(#antiqueGold)" />
+            <rect x="47" y="14" width="2.5" height="14" rx="1" fill="url(#antiqueGold)" />
+            <rect x="51" y="14" width="2.5" height="14" rx="1" fill="url(#antiqueGold)" />
+            <rect x="55" y="14" width="2.5" height="12" rx="1" fill="url(#antiqueGold)" />
+            {/* Fork base connecting tines */}
+            <rect x="43" y="26" width="14.5" height="6" rx="1" fill="url(#antiqueGold)" />
             {/* Fork handle */}
-            <rect x="30" y="28" width="5" height="45" rx="2.5" fill="url(#utensilGold)" transform="rotate(-45 50 50)" />
+            <rect x="48" y="30" width="4" height="52" rx="2" fill="url(#antiqueGold)" />
           </g>
           
-          {/* Center medallion for letters */}
-          <circle cx="50" cy="50" r="22" fill="#FDF8F3" stroke="url(#utensilGold)" strokeWidth="2" />
+          {/* Center circle for monogram */}
+          <circle cx="50" cy="50" r="20" fill="#FBF7F2" stroke="url(#antiqueGold)" strokeWidth="2" />
           
-          {/* HT Monogram in French Creole script style */}
+          {/* HT Monogram - elegant French Creole script */}
           <text 
             x="50" 
-            y="58" 
+            y="57" 
             textAnchor="middle"
-            fontFamily="'Dancing Script', 'Brush Script MT', cursive" 
-            fontSize="30" 
-            fontWeight="600" 
-            fill="#5D3A2E"
+            fontFamily="'Dancing Script', cursive" 
+            fontSize="26" 
+            fontWeight="700" 
+            fill="#4A3728"
+            style={{letterSpacing: '-1px'}}
           >HT</text>
           
-          {/* Decorative flourishes - top */}
+          {/* Decorative flourish curves - top */}
           <path 
-            d="M 35 18 Q 50 12 65 18" 
+            d="M 30 15 Q 50 8 70 15" 
             fill="none" 
-            stroke="url(#flourishGradient)" 
-            strokeWidth="2" 
+            stroke="#4A7A5E" 
+            strokeWidth="2.5" 
             strokeLinecap="round"
           />
           
-          {/* Decorative flourishes - bottom */}
+          {/* Decorative flourish curves - bottom */}
           <path 
-            d="M 35 82 Q 50 88 65 82" 
+            d="M 30 85 Q 50 92 70 85" 
             fill="none" 
-            stroke="url(#flourishGradient)" 
-            strokeWidth="2" 
+            stroke="#4A7A5E" 
+            strokeWidth="2.5" 
             strokeLinecap="round"
           />
           
-          {/* Small decorative dots */}
-          <circle cx="50" cy="10" r="3" fill="#E8B339" />
-          <circle cx="50" cy="90" r="3" fill="#E8B339" />
-          <circle cx="10" cy="50" r="2" fill="#4A7A5E" />
-          <circle cx="90" cy="50" r="2" fill="#4A7A5E" />
+          {/* Gold accent dots */}
+          <circle cx="50" cy="5" r="3" fill="#C9A227" />
+          <circle cx="50" cy="95" r="3" fill="#C9A227" />
         </svg>
       </div>
       {showText && (
         <div className="flex flex-col">
-          <span className={`font-serif ${s.text} font-bold text-foreground leading-tight italic`}>Honor Touré</span>
+          <span style={{fontFamily: "'Dancing Script', cursive"}} className={`${s.text} font-semibold text-foreground leading-tight`}>Honor Touré</span>
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Family Recipes</span>
         </div>
       )}
