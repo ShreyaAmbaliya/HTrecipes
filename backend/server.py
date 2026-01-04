@@ -176,6 +176,7 @@ async def register(user_data: UserCreate):
     user_doc = {
         "id": user_id,
         "name": user_data.name,
+        "nickname": user_data.nickname,
         "email": user_data.email.lower(),
         "password_hash": hash_password(user_data.password),
         "avatar": None,
@@ -187,6 +188,7 @@ async def register(user_data: UserCreate):
     user_response = UserResponse(
         id=user_id,
         name=user_data.name,
+        nickname=user_data.nickname,
         email=user_data.email.lower(),
         avatar=None,
         created_at=user_doc["created_at"]
@@ -203,6 +205,7 @@ async def login(credentials: UserLogin):
     user_response = UserResponse(
         id=user["id"],
         name=user["name"],
+        nickname=user.get("nickname"),
         email=user["email"],
         avatar=user.get("avatar"),
         created_at=user["created_at"]
@@ -214,9 +217,31 @@ async def get_me(user: dict = Depends(get_current_user)):
     return UserResponse(
         id=user["id"],
         name=user["name"],
+        nickname=user.get("nickname"),
         email=user["email"],
         avatar=user.get("avatar"),
         created_at=user["created_at"]
+    )
+
+@api_router.put("/auth/profile", response_model=UserResponse)
+async def update_profile(update_data: UserUpdate, user: dict = Depends(get_current_user)):
+    update_fields = {}
+    if update_data.nickname is not None:
+        update_fields["nickname"] = update_data.nickname if update_data.nickname.strip() else None
+    if update_data.avatar is not None:
+        update_fields["avatar"] = update_data.avatar if update_data.avatar else None
+    
+    if update_fields:
+        await db.users.update_one({"id": user["id"]}, {"$set": update_fields})
+    
+    updated_user = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    return UserResponse(
+        id=updated_user["id"],
+        name=updated_user["name"],
+        nickname=updated_user.get("nickname"),
+        email=updated_user["email"],
+        avatar=updated_user.get("avatar"),
+        created_at=updated_user["created_at"]
     )
 
 # ===================== RECIPE ROUTES =====================
