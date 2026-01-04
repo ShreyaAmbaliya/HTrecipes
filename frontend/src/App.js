@@ -2305,6 +2305,7 @@ function App() {
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route path="/add-recipe" element={<ProtectedRoute><AddRecipePage /></ProtectedRoute>} />
               <Route path="/recipe/:id" element={<ProtectedRoute><RecipeDetailPage /></ProtectedRoute>} />
+              <Route path="/recipe/:id/edit" element={<ProtectedRoute><EditRecipePage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/cookbook" element={<ProtectedRoute><CookbookPage /></ProtectedRoute>} />
             </Routes>
