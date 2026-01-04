@@ -3,7 +3,8 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link } from "react-router-dom";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { ChefHat, Utensils, Camera, Clock, Users, Flame, Heart, Plus, LogOut, Menu, X, Home, User, Search } from "lucide-react";
+import { ChefHat, Utensils, Camera, Clock, Users, Flame, Heart, Plus, LogOut, Menu, X, Home, User, Search, Download, BookOpen } from "lucide-react";
+import jsPDF from "jspdf";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
@@ -81,6 +82,42 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Family Logo Component
+const FamilyLogo = ({ size = "md", showText = true }) => {
+  const sizes = {
+    sm: { container: "w-10 h-10", icon: "w-5 h-5", text: "text-lg" },
+    md: { container: "w-12 h-12", icon: "w-6 h-6", text: "text-xl" },
+    lg: { container: "w-16 h-16", icon: "w-8 h-8", text: "text-2xl" },
+    xl: { container: "w-24 h-24", icon: "w-12 h-12", text: "text-3xl" }
+  };
+  const s = sizes[size];
+  
+  return (
+    <div className="flex items-center gap-3">
+      <div className={`${s.container} relative`}>
+        {/* Outer ring with gradient */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-primary/80 to-secondary shadow-lg"></div>
+        {/* Inner circle */}
+        <div className="absolute inset-1 rounded-full bg-card flex items-center justify-center">
+          {/* Stylized "HT" monogram */}
+          <svg viewBox="0 0 40 40" className={`${s.icon} text-primary`} fill="currentColor">
+            <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" fontSize="18" fontWeight="700" fontFamily="Playfair Display, serif">HT</text>
+          </svg>
+        </div>
+        {/* Decorative dots */}
+        <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-accent"></div>
+        <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-secondary"></div>
+      </div>
+      {showText && (
+        <div className="flex flex-col">
+          <span className={`font-serif ${s.text} font-bold text-foreground leading-tight`}>Honor Touré</span>
+          <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Family Recipes</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Navigation Component
 const Navigation = () => {
   const { user, logout } = useAuth();
@@ -102,10 +139,8 @@ const Navigation = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2" data-testid="nav-logo">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <ChefHat className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="font-serif text-xl font-semibold text-foreground hidden sm:block">Touré Recipes</span>
+              <FamilyLogo size="sm" showText={false} />
+              <span className="font-serif text-xl font-semibold text-foreground hidden sm:block">Honor Touré</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -133,6 +168,14 @@ const Navigation = () => {
               >
                 <User className="w-4 h-4" />
                 My Recipes
+              </Link>
+              <Link 
+                to="/cookbook" 
+                className={`nav-link flex items-center gap-2 text-sm font-medium ${location.pathname === '/cookbook' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                data-testid="nav-cookbook"
+              >
+                <BookOpen className="w-4 h-4" />
+                Family Cookbook
               </Link>
             </div>
 
@@ -203,6 +246,14 @@ const Navigation = () => {
             <User className="w-5 h-5 text-primary" />
             <span className="font-medium">My Recipes</span>
           </Link>
+          <Link 
+            to="/cookbook" 
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
+          >
+            <BookOpen className="w-5 h-5 text-primary" />
+            <span className="font-medium">Family Cookbook</span>
+          </Link>
           <div className="pt-4 border-t border-border mt-4">
             <div className="px-3 py-2 text-sm text-muted-foreground">Signed in as</div>
             <div className="px-3 py-2 font-medium">{user.name}</div>
@@ -251,11 +302,9 @@ const LoginPage = () => {
   return (
     <div className="auth-container" data-testid="auth-page">
       <div className="auth-card animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary mx-auto flex items-center justify-center mb-4">
-            <ChefHat className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="font-serif text-3xl font-bold text-foreground mb-2">Touré Family Recipes</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <FamilyLogo size="lg" showText={false} />
+          <h1 className="font-serif text-3xl font-bold text-foreground mb-2 mt-4">Honor Touré Family</h1>
           <p className="text-muted-foreground">Share your culinary heritage</p>
         </div>
 
@@ -437,20 +486,34 @@ const HomePage = () => {
       <section className="relative bg-gradient-to-b from-primary/5 to-background py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto animate-slide-up">
+            <div className="flex justify-center mb-6">
+              <FamilyLogo size="xl" showText={false} />
+            </div>
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4">
-              Family Recipes,<br />Shared with Love
+              Honor Touré<br />Family Recipes
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
-              Preserve and share the Touré family's culinary traditions
+              Preserve and share our family's culinary traditions with love
             </p>
-            <Button 
-              onClick={() => navigate("/add-recipe")}
-              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg font-serif transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
-              data-testid="hero-add-recipe-btn"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Share a Recipe
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                onClick={() => navigate("/add-recipe")}
+                className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg font-serif transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+                data-testid="hero-add-recipe-btn"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Share a Recipe
+              </Button>
+              <Button 
+                onClick={() => navigate("/cookbook")}
+                variant="outline"
+                className="rounded-full border-2 border-primary text-primary hover:bg-primary/5 px-8 py-6 text-lg font-serif"
+                data-testid="hero-cookbook-btn"
+              >
+                <BookOpen className="w-5 h-5 mr-2" />
+                Family Cookbook
+              </Button>
+            </div>
           </div>
         </div>
       </section>
