@@ -364,7 +364,60 @@ const Navigation = () => {
               </Link>
             </div>
 
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-3">
+              {/* Notifications */}
+              <div className="relative">
+                <button
+                  onClick={toggleNotifications}
+                  className="p-2 rounded-full hover:bg-muted transition-colors relative"
+                  data-testid="notifications-btn"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-5 h-5 text-muted-foreground" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-semibold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 top-12 w-80 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden" data-testid="notifications-dropdown">
+                    <div className="p-3 border-b border-border flex items-center justify-between">
+                      <h3 className="font-semibold">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllAsRead} className="text-xs text-primary hover:underline">
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="p-4 text-center text-muted-foreground text-sm">No notifications yet</p>
+                      ) : (
+                        notifications.map(notification => (
+                          <button
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`w-full p-3 text-left hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 ${
+                              !notification.is_read ? 'bg-primary/5' : ''
+                            }`}
+                          >
+                            <p className={`text-sm ${!notification.is_read ? 'font-medium' : ''}`}>
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(notification.created_at).toLocaleDateString()}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-full hover:bg-muted transition-colors"
@@ -373,7 +426,19 @@ const Navigation = () => {
               >
                 {isDark ? <Sun className="w-5 h-5 text-accent" /> : <Moon className="w-5 h-5 text-muted-foreground" />}
               </button>
-              <span className="text-sm text-muted-foreground">Welcome, <span className="font-medium text-foreground">{user.name}</span></span>
+
+              {/* User Avatar & Settings */}
+              <Link to="/settings" className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="nav-settings">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={getDisplayName()} className="w-8 h-8 rounded-full object-cover border-2 border-border" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
+                <span className="text-sm font-medium text-foreground">{getDisplayName()}</span>
+              </Link>
+
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -381,8 +446,7 @@ const Navigation = () => {
                 className="text-muted-foreground hover:text-foreground"
                 data-testid="logout-btn"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                <LogOut className="w-4 h-4" />
               </Button>
             </div>
 
