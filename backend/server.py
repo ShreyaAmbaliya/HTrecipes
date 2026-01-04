@@ -44,15 +44,21 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
+    nickname: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+    avatar: Optional[str] = None  # Base64 encoded image
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
     name: str
+    nickname: Optional[str] = None
     email: str
     avatar: Optional[str] = None
     created_at: str
@@ -60,6 +66,18 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     token: str
     user: UserResponse
+
+# Notification Models
+class NotificationResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    type: str  # "new_recipe", "comment", etc.
+    message: str
+    recipe_id: Optional[str] = None
+    from_user_name: str
+    is_read: bool
+    created_at: str
 
 class RecipeCreate(BaseModel):
     title: str
