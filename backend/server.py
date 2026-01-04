@@ -249,6 +249,7 @@ async def update_profile(update_data: UserUpdate, user: dict = Depends(get_curre
 @api_router.post("/recipes", response_model=RecipeResponse)
 async def create_recipe(recipe_data: RecipeCreate, user: dict = Depends(get_current_user)):
     recipe_id = str(uuid.uuid4())
+    display_name = user.get("nickname") or user["name"]
     recipe_doc = {
         "id": recipe_id,
         "title": recipe_data.title,
@@ -261,10 +262,29 @@ async def create_recipe(recipe_data: RecipeCreate, user: dict = Depends(get_curr
         "category": recipe_data.category,
         "difficulty": recipe_data.difficulty,
         "author_id": user["id"],
-        "author_name": user["name"],
+        "author_name": display_name,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.recipes.insert_one(recipe_doc)
+    
+    # Create notifications for all other family members
+    all_users = await db.users.find({"id": {"$ne": user["id"]}}, {"_id": 0, "id": 1}).to_list(100)
+    notifications = []
+    for other_user in all_users:
+        notification_doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": other_user["id"],
+            "type": "new_recipe",
+            "message": f"{display_name} shared a new recipe: {recipe_data.title}",
+            "recipe_id": recipe_id,
+            "from_user_name": display_name,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        notifications.append(notification_doc)
+    
+    if notifications:
+        await db.notifications.insert_many(notifications)
     
     return RecipeResponse(**{k: v for k, v in recipe_doc.items() if k != "_id"})
 
