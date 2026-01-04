@@ -235,7 +235,7 @@ const Navigation = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-border/50" data-testid="navigation">
+      <nav className="sticky top-0 z-30 bg-card/80 backdrop-blur-md border-b border-border/50" data-testid="navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2" data-testid="nav-logo">
@@ -320,7 +320,7 @@ const Navigation = () => {
       />
 
       {/* Mobile Menu */}
-      <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`} data-testid="mobile-menu">
+      <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''} bg-card`} data-testid="mobile-menu">
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
             <span className="font-serif text-lg font-semibold">Menu</span>
