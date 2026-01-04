@@ -366,6 +366,13 @@ const Navigation = () => {
             <div className="px-3 py-2 text-sm text-muted-foreground">Signed in as</div>
             <div className="px-3 py-2 font-medium">{user.name}</div>
             <button 
+              onClick={toggleTheme}
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted w-full text-left"
+            >
+              {isDark ? <Sun className="w-5 h-5 text-accent" /> : <Moon className="w-5 h-5 text-muted-foreground" />}
+              <span className="font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
+            </button>
+            <button 
               onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
               className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted w-full text-left text-destructive"
             >
