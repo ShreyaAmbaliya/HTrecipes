@@ -86,8 +86,17 @@ const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (updatedData) => {
+    setUser(prev => ({ ...prev, ...updatedData }));
+  };
+
+  // Get display name (nickname or name)
+  const getDisplayName = (userData = user) => {
+    return userData?.nickname || userData?.name || "User";
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, loading, updateUser, getDisplayName }}>
       {children}
     </AuthContext.Provider>
   );
