@@ -280,6 +280,14 @@ const Navigation = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full hover:bg-muted transition-colors"
+                data-testid="theme-toggle"
+                aria-label="Toggle dark mode"
+              >
+                {isDark ? <Sun className="w-5 h-5 text-accent" /> : <Moon className="w-5 h-5 text-muted-foreground" />}
+              </button>
               <span className="text-sm text-muted-foreground">Welcome, <span className="font-medium text-foreground">{user.name}</span></span>
               <Button 
                 variant="ghost" 
