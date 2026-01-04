@@ -1018,6 +1018,22 @@ const AddRecipePage = () => {
             />
           </div>
 
+          {/* Story (Optional) */}
+          <div className="space-y-2">
+            <Label htmlFor="story" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              The Story Behind This Recipe <span className="text-muted-foreground/60 normal-case">(optional)</span>
+            </Label>
+            <Textarea
+              id="story"
+              placeholder="Share the story of this recipe... Where did it come from? Who passed it down? What memories does it hold for your family?"
+              value={formData.story}
+              onChange={(e) => setFormData({ ...formData, story: e.target.value })}
+              className="rounded-xl border-2 border-border/50 min-h-[120px] resize-y"
+              data-testid="input-story"
+            />
+            <p className="text-xs text-muted-foreground">Tell us about the history, traditions, or special memories connected to this dish.</p>
+          </div>
+
           {/* Submit */}
           <div className="flex gap-4 pt-4">
             <Button 
