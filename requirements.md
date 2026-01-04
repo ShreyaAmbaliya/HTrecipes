@@ -1,18 +1,20 @@
-# Touré Family Recipe App
+# Honor Touré Family Recipe App
 
 ## Original Problem Statement
 Build a Touré family recipe app for sharing recipes with family members. Features include:
 - Family members log in with separate accounts
 - Recipe details: title, ingredients, instructions, photos, cooking time, servings, categories, difficulty level
 - Photo uploads from gallery and camera capture
+- Family Cookbook PDF export feature
+- Custom family logo
 
 ## Architecture & Tech Stack
-- **Frontend**: React 19 + Tailwind CSS + Shadcn/UI
+- **Frontend**: React 19 + Tailwind CSS + Shadcn/UI + jsPDF
 - **Backend**: FastAPI + Python
 - **Database**: MongoDB
 - **Authentication**: JWT tokens with bcrypt password hashing
 
-## Features Implemented (MVP)
+## Features Implemented
 1. ✅ User authentication (register/login/logout)
 2. ✅ JWT token-based security
 3. ✅ Recipe CRUD operations
@@ -23,6 +25,18 @@ Build a Touré family recipe app for sharing recipes with family members. Featur
 8. ✅ My Recipes (profile) page
 9. ✅ Responsive mobile design
 10. ✅ Warm "Spice & Linen" design system
+11. ✅ **Family Logo (HT monogram)**
+12. ✅ **Family Cookbook PDF Export**
+13. ✅ **Renamed to Honor Touré Family Recipes**
+
+## Family Cookbook PDF Export
+- Select individual recipes or "Select All"
+- Generates professional PDF with:
+  - Cover page with family name and decorative borders
+  - Table of Contents
+  - Individual recipe pages with ingredients and instructions
+  - Category and difficulty badges
+  - Author attribution
 
 ## API Endpoints
 - `POST /api/auth/register` - Create new account
@@ -41,9 +55,9 @@ Build a Touré family recipe app for sharing recipes with family members. Featur
 3. User profile pictures/avatars
 4. Recipe favorites/bookmarks
 5. Share recipes externally
-6. Family cookbook PDF export
 
 ## Design System
 - **Colors**: Terracotta primary (#E07B4C), Sage secondary (#4A7A5E), Linen background
 - **Fonts**: Playfair Display (headings), Manrope (body)
+- **Logo**: HT monogram with gradient ring and decorative dots
 - **Style**: Warm, organic, family-oriented aesthetic
