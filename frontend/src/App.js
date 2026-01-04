@@ -1221,13 +1221,24 @@ const RecipeDetailPage = () => {
                 </div>
               </div>
               {user?.id === recipe.author_id && (
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={handleDelete}
-                  className="rounded-full"
-                  data-testid="delete-recipe-btn"
-                >
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
+                    className="rounded-full"
+                    data-testid="edit-recipe-btn"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={handleDelete}
+                    className="rounded-full"
+                    data-testid="delete-recipe-btn"
+                  >
                   Delete
                 </Button>
               )}
