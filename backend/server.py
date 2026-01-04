@@ -65,6 +65,7 @@ class RecipeCreate(BaseModel):
     title: str
     ingredients: List[str]
     instructions: str
+    story: Optional[str] = None  # Optional story behind the recipe
     photos: List[str] = []  # Base64 encoded images
     cooking_time: int  # minutes
     servings: int
@@ -75,6 +76,7 @@ class RecipeUpdate(BaseModel):
     title: Optional[str] = None
     ingredients: Optional[List[str]] = None
     instructions: Optional[str] = None
+    story: Optional[str] = None
     photos: Optional[List[str]] = None
     cooking_time: Optional[int] = None
     servings: Optional[int] = None
@@ -87,6 +89,7 @@ class RecipeResponse(BaseModel):
     title: str
     ingredients: List[str]
     instructions: str
+    story: Optional[str] = None
     photos: List[str]
     cooking_time: int
     servings: int
@@ -195,6 +198,7 @@ async def create_recipe(recipe_data: RecipeCreate, user: dict = Depends(get_curr
         "title": recipe_data.title,
         "ingredients": recipe_data.ingredients,
         "instructions": recipe_data.instructions,
+        "story": recipe_data.story,
         "photos": recipe_data.photos,
         "cooking_time": recipe_data.cooking_time,
         "servings": recipe_data.servings,
