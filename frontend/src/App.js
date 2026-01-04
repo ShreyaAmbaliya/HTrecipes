@@ -1193,6 +1193,20 @@ const RecipeDetailPage = () => {
                 {recipe.instructions}
               </div>
             </div>
+
+            {/* Recipe Story */}
+            {recipe.story && (
+              <div className="mt-10 p-6 rounded-2xl bg-primary/5 border border-primary/10" data-testid="recipe-story">
+                <h2 className="font-serif text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-primary" />
+                  The Story
+                </h2>
+                <div className="text-foreground whitespace-pre-line leading-relaxed italic">
+                  "{recipe.story}"
+                </div>
+                <p className="text-sm text-muted-foreground mt-4">— Shared by {recipe.author_name}</p>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
