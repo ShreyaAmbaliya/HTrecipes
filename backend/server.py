@@ -99,6 +99,19 @@ class RecipeResponse(BaseModel):
     author_name: str
     created_at: str
 
+# Comment Models
+class CommentCreate(BaseModel):
+    text: str
+
+class CommentResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    recipe_id: str
+    user_id: str
+    user_name: str
+    text: str
+    created_at: str
+
 # ===================== AUTH HELPERS =====================
 
 def hash_password(password: str) -> str:
