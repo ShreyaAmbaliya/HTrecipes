@@ -675,6 +675,7 @@ const AddRecipePage = () => {
     title: "",
     ingredients: [""],
     instructions: "",
+    story: "",
     photos: [],
     cooking_time: 30,
     servings: 4,
