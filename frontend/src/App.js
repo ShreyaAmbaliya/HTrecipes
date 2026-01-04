@@ -1111,12 +1111,16 @@ const RecipeDetailPage = () => {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
 
   useEffect(() => {
     fetchRecipe();
+    fetchComments();
   }, [id]);
 
   const fetchRecipe = async () => {
@@ -1130,6 +1134,48 @@ const RecipeDetailPage = () => {
       navigate("/");
     }
     setLoading(false);
+  };
+
+  const fetchComments = async () => {
+    try {
+      const response = await axios.get(`${API}/recipes/${id}/comments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setComments(response.data);
+    } catch (error) {
+      console.error("Failed to load comments");
+    }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    
+    setSubmittingComment(true);
+    try {
+      const response = await axios.post(`${API}/recipes/${id}/comments`, 
+        { text: newComment },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setComments([response.data, ...comments]);
+      setNewComment("");
+      toast.success("Comment added!");
+    } catch (error) {
+      toast.error("Failed to add comment");
+    }
+    setSubmittingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await axios.delete(`${API}/comments/${commentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setComments(comments.filter(c => c.id !== commentId));
+      toast.success("Comment deleted");
+    } catch (error) {
+      toast.error("Failed to delete comment");
+    }
   };
 
   const handleDelete = async () => {
