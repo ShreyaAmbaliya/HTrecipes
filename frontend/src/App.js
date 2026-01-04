@@ -149,12 +149,11 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
           {/* HT Monogram in French Creole script style */}
           <text 
             x="50" 
-            y="56" 
+            y="58" 
             textAnchor="middle"
-            fontFamily="'Brush Script MT', 'Segoe Script', 'Bradley Hand', cursive" 
-            fontSize="28" 
-            fontWeight="400" 
-            fontStyle="italic"
+            fontFamily="'Dancing Script', 'Brush Script MT', cursive" 
+            fontSize="30" 
+            fontWeight="600" 
             fill="#5D3A2E"
           >HT</text>
           
