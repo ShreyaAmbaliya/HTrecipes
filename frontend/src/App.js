@@ -1240,7 +1240,8 @@ const RecipeDetailPage = () => {
                     data-testid="delete-recipe-btn"
                   >
                   Delete
-                </Button>
+                  </Button>
+                </div>
               )}
             </div>
 
