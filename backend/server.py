@@ -81,6 +81,17 @@ class NotificationResponse(BaseModel):
     is_read: bool
     created_at: str
 
+# Notification V1 Models (New family-scoped notification system)
+class NotificationV1Response(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    family_id: str
+    type: str  # "recipe_added", "comment_added", "photo_added"
+    payload: dict  # Light metadata like recipe_id, author_name
+    is_read: bool
+    created_at: str
+
 class RecipeCreate(BaseModel):
     title: str
     ingredients: List[str]
@@ -199,6 +210,59 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+# ===================== NOTIFICATION V1 HELPERS =====================
+
+async def create_notification_v1(
+    family_id: str,
+    notification_type: str,
+    payload: dict,
+    exclude_user_id: Optional[str] = None
+):
+    """
+    Silently create v1 notifications for all family members.
+    This function only writes to the database - no external push notifications are sent.
+    
+    Args:
+        family_id: The family ID to create notifications for
+        notification_type: Type of notification (e.g., "recipe_added", "comment_added", "photo_added")
+        payload: Light metadata dictionary (e.g., {"recipe_id": "...", "author_name": "..."})
+        exclude_user_id: Optional user ID to exclude from notifications (e.g., the author)
+    """
+    if not family_id:
+        # Don't create notifications if there's no family
+        return
+    
+    # Get all family members
+    query = {"family_id": family_id}
+    if exclude_user_id:
+        query["id"] = {"$ne": exclude_user_id}
+    
+    family_members = await db.users.find(
+        query,
+        {"_id": 0, "id": 1}
+    ).to_list(100)
+    
+    if not family_members:
+        return
+    
+    # Create notification records for each family member
+    notifications = []
+    for member in family_members:
+        notification_doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": member["id"],
+            "family_id": family_id,
+            "type": notification_type,
+            "payload": payload,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        notifications.append(notification_doc)
+    
+    # Insert all notifications silently (no external push)
+    if notifications:
+        await db.notifications_v1.insert_many(notifications)
 
 # ===================== AUTH ROUTES =====================
 
@@ -341,6 +405,19 @@ async def create_recipe(recipe_data: RecipeCreate, user: dict = Depends(get_curr
         if notifications:
             await db.notifications.insert_many(notifications)
     
+    # Create v1 notifications silently (new notification system)
+    if user_family_id:
+        await create_notification_v1(
+            family_id=user_family_id,
+            notification_type="recipe_added",
+            payload={
+                "recipe_id": recipe_id,
+                "author_name": display_name,
+                "recipe_title": recipe_data.title
+            },
+            exclude_user_id=user["id"]
+        )
+    
     return RecipeResponse(**{k: v for k, v in recipe_doc.items() if k != "_id"})
 
 @api_router.get("/recipes", response_model=List[RecipeResponse])
@@ -406,11 +483,36 @@ async def update_recipe(recipe_id: str, recipe_data: RecipeUpdate, user: dict = 
     if recipe_family_id is not None and recipe_family_id != user_family_id:
         raise HTTPException(status_code=403, detail="Not authorized to update this recipe")
     
+    # Check if photos are being added (for v1 notification)
+    photos_added = False
+    old_photos = recipe.get("photos", [])
+    if recipe_data.photos is not None:
+        new_photos = recipe_data.photos
+        # Check if new photos list is longer than old photos list
+        if len(new_photos) > len(old_photos):
+            photos_added = True
+    
     update_data = {k: v for k, v in recipe_data.model_dump().items() if v is not None}
     if update_data:
         await db.recipes.update_one({"id": recipe_id}, {"$set": update_data})
     
     updated = await db.recipes.find_one({"id": recipe_id}, {"_id": 0})
+    
+    # Create v1 notification for photo_added event (silent)
+    if photos_added and recipe_family_id:
+        display_name = user.get("nickname") or user["name"]
+        await create_notification_v1(
+            family_id=recipe_family_id,
+            notification_type="photo_added",
+            payload={
+                "recipe_id": recipe_id,
+                "recipe_title": recipe.get("title", ""),
+                "author_name": display_name,
+                "photo_count": len(updated.get("photos", []))
+            },
+            exclude_user_id=user["id"]  # Don't notify the recipe author
+        )
+    
     return RecipeResponse(**updated)
 
 @api_router.delete("/recipes/{recipe_id}")
@@ -487,6 +589,22 @@ async def create_comment(recipe_id: str, comment_data: CommentCreate, user: dict
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 await db.notifications.insert_one(notification_doc)
+    
+    # Create v1 notifications silently (new notification system)
+    recipe_family_id = recipe.get("family_id")
+    if recipe_family_id:
+        # Notify all family members about the new comment
+        await create_notification_v1(
+            family_id=recipe_family_id,
+            notification_type="comment_added",
+            payload={
+                "recipe_id": recipe_id,
+                "recipe_title": recipe.get("title", ""),
+                "comment_author_name": display_name,
+                "comment_id": comment_id
+            },
+            exclude_user_id=user["id"]  # Don't notify the comment author
+        )
     
     return CommentResponse(**{k: v for k, v in comment_doc.items() if k != "_id"})
 
