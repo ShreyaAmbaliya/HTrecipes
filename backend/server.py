@@ -61,6 +61,8 @@ class UserResponse(BaseModel):
     nickname: Optional[str] = None
     email: str
     avatar: Optional[str] = None
+    family_id: Optional[str] = None  # NEW: Optional for backward compatibility
+    role: Optional[str] = None       # NEW: Optional for backward compatibility
     created_at: str
 
 class TokenResponse(BaseModel):
@@ -104,6 +106,7 @@ class RecipeUpdate(BaseModel):
 class RecipeResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
+    family_id: Optional[str] = None  # NEW: Optional for backward compatibility
     title: str
     ingredients: List[str]
     instructions: str
@@ -129,6 +132,41 @@ class CommentResponse(BaseModel):
     user_name: str
     text: str
     created_at: str
+
+# Family Models
+class FamilyCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class FamilyUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    cover_image: Optional[str] = None
+
+class FamilyResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    name: str
+    owner_id: str
+    invite_code: str
+    metadata: Optional[dict] = None
+    created_at: str
+
+class FamilyJoinRequest(BaseModel):
+    invite_code: str
+
+class FamilyTransferKeeperRequest(BaseModel):
+    new_keeper_id: str
+
+class FamilyMemberResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    name: str
+    nickname: Optional[str] = None
+    email: str
+    avatar: Optional[str] = None
+    role: str
+    joined_at: Optional[str] = None  # Will use created_at from user as proxy
 
 # ===================== AUTH HELPERS =====================
 
@@ -191,6 +229,8 @@ async def register(user_data: UserCreate):
         nickname=user_data.nickname,
         email=user_data.email.lower(),
         avatar=None,
+        family_id=None,  # New users start without a family
+        role=None,        # New users start without a role
         created_at=user_doc["created_at"]
     )
     return TokenResponse(token=token, user=user_response)
@@ -208,6 +248,8 @@ async def login(credentials: UserLogin):
         nickname=user.get("nickname"),
         email=user["email"],
         avatar=user.get("avatar"),
+        family_id=user.get("family_id"),  # Will be None for existing users
+        role=user.get("role"),             # Will be None for existing users
         created_at=user["created_at"]
     )
     return TokenResponse(token=token, user=user_response)
@@ -220,6 +262,8 @@ async def get_me(user: dict = Depends(get_current_user)):
         nickname=user.get("nickname"),
         email=user["email"],
         avatar=user.get("avatar"),
+        family_id=user.get("family_id"),  # Will be None for existing users
+        role=user.get("role"),             # Will be None for existing users
         created_at=user["created_at"]
     )
 
@@ -241,6 +285,8 @@ async def update_profile(update_data: UserUpdate, user: dict = Depends(get_curre
         nickname=updated_user.get("nickname"),
         email=updated_user["email"],
         avatar=updated_user.get("avatar"),
+        family_id=updated_user.get("family_id"),
+        role=updated_user.get("role"),
         created_at=updated_user["created_at"]
     )
 
@@ -248,10 +294,14 @@ async def update_profile(update_data: UserUpdate, user: dict = Depends(get_curre
 
 @api_router.post("/recipes", response_model=RecipeResponse)
 async def create_recipe(recipe_data: RecipeCreate, user: dict = Depends(get_current_user)):
+    # Backward compatible: Allow recipe creation even without family
+    user_family_id = user.get("family_id")
+    
     recipe_id = str(uuid.uuid4())
     display_name = user.get("nickname") or user["name"]
     recipe_doc = {
         "id": recipe_id,
+        "family_id": user_family_id,  # Will be None if user has no family (legacy recipe)
         "title": recipe_data.title,
         "ingredients": recipe_data.ingredients,
         "instructions": recipe_data.instructions,
@@ -267,30 +317,49 @@ async def create_recipe(recipe_data: RecipeCreate, user: dict = Depends(get_curr
     }
     await db.recipes.insert_one(recipe_doc)
     
-    # Create notifications for all other family members
-    all_users = await db.users.find({"id": {"$ne": user["id"]}}, {"_id": 0, "id": 1}).to_list(100)
-    notifications = []
-    for other_user in all_users:
-        notification_doc = {
-            "id": str(uuid.uuid4()),
-            "user_id": other_user["id"],
-            "type": "new_recipe",
-            "message": f"{display_name} shared a new recipe: {recipe_data.title}",
-            "recipe_id": recipe_id,
-            "from_user_name": display_name,
-            "is_read": False,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        notifications.append(notification_doc)
-    
-    if notifications:
-        await db.notifications.insert_many(notifications)
+    # Create notifications only if user has a family
+    if user_family_id:
+        family_members = await db.users.find(
+            {"family_id": user_family_id, "id": {"$ne": user["id"]}},
+            {"_id": 0, "id": 1}
+        ).to_list(100)
+        
+        notifications = []
+        for member in family_members:
+            notification_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": member["id"],
+                "type": "new_recipe",
+                "message": f"{display_name} shared a new recipe: {recipe_data.title}",
+                "recipe_id": recipe_id,
+                "from_user_name": display_name,
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            notifications.append(notification_doc)
+        
+        if notifications:
+            await db.notifications.insert_many(notifications)
     
     return RecipeResponse(**{k: v for k, v in recipe_doc.items() if k != "_id"})
 
 @api_router.get("/recipes", response_model=List[RecipeResponse])
-async def get_recipes(category: Optional[str] = None, author_id: Optional[str] = None):
-    query = {}
+async def get_recipes(
+    category: Optional[str] = None,
+    author_id: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    # Backward compatible: Handle both family-scoped and legacy recipes
+    user_family_id = user.get("family_id")
+    
+    if user_family_id:
+        # User has a family: show family-scoped recipes only
+        query = {"family_id": user_family_id}
+    else:
+        # User has no family: show legacy recipes (family_id is null)
+        query = {"family_id": None}
+    
+    # Apply filters
     if category:
         query["category"] = category
     if author_id:
@@ -300,10 +369,24 @@ async def get_recipes(category: Optional[str] = None, author_id: Optional[str] =
     return [RecipeResponse(**r) for r in recipes]
 
 @api_router.get("/recipes/{recipe_id}", response_model=RecipeResponse)
-async def get_recipe(recipe_id: str):
+async def get_recipe(recipe_id: str, user: dict = Depends(get_current_user)):
     recipe = await db.recipes.find_one({"id": recipe_id}, {"_id": 0})
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
+    
+    recipe_family_id = recipe.get("family_id")
+    user_family_id = user.get("family_id")
+    
+    # Backward compatible access control:
+    # 1. Legacy recipes (family_id is None): accessible to everyone
+    # 2. Family-scoped recipes: only accessible to family members
+    if recipe_family_id is None:
+        # Legacy recipe: accessible to all users
+        pass
+    elif recipe_family_id != user_family_id:
+        # Family-scoped recipe: user must be in the same family
+        raise HTTPException(status_code=403, detail="Not authorized to view this recipe")
+    
     return RecipeResponse(**recipe)
 
 @api_router.put("/recipes/{recipe_id}", response_model=RecipeResponse)
@@ -311,7 +394,16 @@ async def update_recipe(recipe_id: str, recipe_data: RecipeUpdate, user: dict = 
     recipe = await db.recipes.find_one({"id": recipe_id}, {"_id": 0})
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
+    
+    # Check authorization: only author can update
     if recipe["author_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update this recipe")
+    
+    # Backward compatible: Check family access for family-scoped recipes
+    recipe_family_id = recipe.get("family_id")
+    user_family_id = user.get("family_id")
+    
+    if recipe_family_id is not None and recipe_family_id != user_family_id:
         raise HTTPException(status_code=403, detail="Not authorized to update this recipe")
     
     update_data = {k: v for k, v in recipe_data.model_dump().items() if v is not None}
@@ -326,8 +418,25 @@ async def delete_recipe(recipe_id: str, user: dict = Depends(get_current_user)):
     recipe = await db.recipes.find_one({"id": recipe_id}, {"_id": 0})
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
-    if recipe["author_id"] != user["id"]:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this recipe")
+    
+    recipe_family_id = recipe.get("family_id")
+    user_family_id = user.get("family_id")
+    
+    # Backward compatible access control:
+    # 1. Legacy recipes (family_id is None): only author can delete
+    # 2. Family-scoped recipes: author can always delete, keeper can delete any
+    if recipe_family_id is None:
+        # Legacy recipe: only author can delete
+        if recipe["author_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this recipe")
+    else:
+        # Family-scoped recipe: check family membership
+        if recipe_family_id != user_family_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Role-based deletion: Keeper can delete any, Member can only delete own
+        if recipe["author_id"] != user["id"] and user.get("role") != "keeper":
+            raise HTTPException(status_code=403, detail="Only keepers can delete others' recipes")
     
     await db.recipes.delete_one({"id": recipe_id})
     return {"message": "Recipe deleted successfully"}
@@ -349,15 +458,35 @@ async def create_comment(recipe_id: str, comment_data: CommentCreate, user: dict
         raise HTTPException(status_code=404, detail="Recipe not found")
     
     comment_id = str(uuid.uuid4())
+    display_name = user.get("nickname") or user["name"]
     comment_doc = {
         "id": comment_id,
         "recipe_id": recipe_id,
         "user_id": user["id"],
-        "user_name": user["name"],
+        "user_name": display_name,
         "text": comment_data.text,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.comments.insert_one(comment_doc)
+    
+    # Create notification for recipe author if they're in a family and it's not their own comment
+    if recipe["author_id"] != user["id"]:
+        recipe_family_id = recipe.get("family_id")
+        if recipe_family_id:
+            # Check if recipe author is in the same family
+            author = await db.users.find_one({"id": recipe["author_id"]}, {"_id": 0})
+            if author and author.get("family_id") == recipe_family_id:
+                notification_doc = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": recipe["author_id"],
+                    "type": "comment",
+                    "message": f"{display_name} commented on your recipe: {recipe['title']}",
+                    "recipe_id": recipe_id,
+                    "from_user_name": display_name,
+                    "is_read": False,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.notifications.insert_one(notification_doc)
     
     return CommentResponse(**{k: v for k, v in comment_doc.items() if k != "_id"})
 
@@ -409,6 +538,390 @@ async def mark_all_notifications_read(user: dict = Depends(get_current_user)):
         {"$set": {"is_read": True}}
     )
     return {"message": "All notifications marked as read"}
+
+# ===================== FAMILY ROUTES =====================
+
+@api_router.post("/families", response_model=FamilyResponse)
+async def create_family(family_data: FamilyCreate, user: dict = Depends(get_current_user)):
+    # Check if user already has a family
+    if user.get("family_id"):
+        raise HTTPException(status_code=400, detail="User already belongs to a family")
+    
+    # Generate unique invite code
+    invite_code = str(uuid.uuid4())[:8].upper()
+    
+    # Ensure invite code is unique
+    while await db.families.find_one({"invite_code": invite_code}):
+        invite_code = str(uuid.uuid4())[:8].upper()
+    
+    family_id = str(uuid.uuid4())
+    family_doc = {
+        "id": family_id,
+        "name": family_data.name,
+        "owner_id": user["id"],
+        "invite_code": invite_code,
+        "metadata": {
+            "description": family_data.description
+        } if family_data.description else None,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.families.insert_one(family_doc)
+    
+    # Update user to be keeper of this family
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"family_id": family_id, "role": "keeper"}}
+    )
+    
+    return FamilyResponse(**{k: v for k, v in family_doc.items() if k != "_id"})
+
+@api_router.post("/families/join", response_model=FamilyResponse)
+async def join_family(join_data: FamilyJoinRequest, user: dict = Depends(get_current_user)):
+    # Check if user already has a family
+    if user.get("family_id"):
+        raise HTTPException(status_code=400, detail="User already belongs to a family")
+    
+    # Find family by invite code
+    family = await db.families.find_one({"invite_code": join_data.invite_code.upper()}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Invalid invite code")
+    
+    # Update user to be member of this family
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"family_id": family["id"], "role": "member"}}
+    )
+    
+    # Create notification for family keeper
+    keeper = await db.users.find_one({"id": family["owner_id"]}, {"_id": 0})
+    if keeper:
+        display_name = user.get("nickname") or user["name"]
+        notification_doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": family["owner_id"],
+            "type": "family_invite",
+            "message": f"{display_name} joined your family: {family['name']}",
+            "from_user_name": display_name,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification_doc)
+    
+    return FamilyResponse(**family)
+
+@api_router.get("/families/{family_id}", response_model=FamilyResponse)
+async def get_family(family_id: str, user: dict = Depends(get_current_user)):
+    # Verify user belongs to this family
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    return FamilyResponse(**family)
+
+@api_router.put("/families/{family_id}", response_model=FamilyResponse)
+async def update_family(family_id: str, family_data: FamilyUpdate, user: dict = Depends(get_current_user)):
+    # Verify user belongs to this family and is the keeper
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    if user.get("role") != "keeper":
+        raise HTTPException(status_code=403, detail="Only the family keeper can update the family")
+    
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    # Build update fields
+    update_fields = {}
+    if family_data.name is not None:
+        update_fields["name"] = family_data.name
+    
+    # Handle metadata updates
+    metadata_updates = {}
+    if family_data.description is not None:
+        metadata_updates["description"] = family_data.description
+    if family_data.cover_image is not None:
+        metadata_updates["cover_image"] = family_data.cover_image
+    
+    # Update metadata if needed
+    if metadata_updates:
+        current_metadata = family.get("metadata") or {}
+        updated_metadata = {**current_metadata, **metadata_updates}
+        update_fields["metadata"] = updated_metadata
+    
+    # Apply updates
+    if update_fields:
+        await db.families.update_one({"id": family_id}, {"$set": update_fields})
+    
+    updated_family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    return FamilyResponse(**updated_family)
+
+@api_router.delete("/families/{family_id}")
+async def delete_family(family_id: str, user: dict = Depends(get_current_user)):
+    # Verify user belongs to this family and is the keeper
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    if user.get("role") != "keeper":
+        raise HTTPException(status_code=403, detail="Only the family keeper can delete the family")
+    
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    # Remove all family members' family associations
+    await db.users.update_many(
+        {"family_id": family_id},
+        {"$unset": {"family_id": "", "role": ""}}
+    )
+    
+    # Delete the family
+    await db.families.delete_one({"id": family_id})
+    
+    return {"message": "Family deleted successfully. All members have been removed from the family."}
+
+@api_router.get("/families/{family_id}/members", response_model=List[FamilyMemberResponse])
+async def get_family_members(family_id: str, user: dict = Depends(get_current_user)):
+    # Verify user belongs to this family
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    # Verify family exists
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    # Get all family members
+    members = await db.users.find(
+        {"family_id": family_id},
+        {"_id": 0, "id": 1, "name": 1, "nickname": 1, "email": 1, "avatar": 1, "role": 1, "created_at": 1}
+    ).to_list(100)
+    
+    # Convert to response model
+    member_responses = []
+    for member in members:
+        member_responses.append(FamilyMemberResponse(
+            id=member["id"],
+            name=member["name"],
+            nickname=member.get("nickname"),
+            email=member["email"],
+            avatar=member.get("avatar"),
+            role=member.get("role", "member"),
+            joined_at=member.get("created_at")  # Using created_at as proxy for joined_at
+        ))
+    
+    return member_responses
+
+@api_router.delete("/families/{family_id}/members/{user_id}")
+async def remove_family_member(family_id: str, user_id: str, user: dict = Depends(get_current_user)):
+    # Verify user belongs to this family and is the keeper
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    if user.get("role") != "keeper":
+        raise HTTPException(status_code=403, detail="Only the family keeper can remove members")
+    
+    # Verify family exists
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    # Prevent keeper from removing themselves
+    if user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Keeper cannot remove themselves. Delete the family instead.")
+    
+    # Verify the member exists and belongs to this family
+    member = await db.users.find_one({"id": user_id, "family_id": family_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found or does not belong to this family")
+    
+    # Remove member from family
+    await db.users.update_one(
+        {"id": user_id},
+        {"$unset": {"family_id": "", "role": ""}}
+    )
+    
+    # Create notification for removed member
+    display_name = user.get("nickname") or user["name"]
+    notification_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": "family_invite",
+        "message": f"You have been removed from {family['name']} by {display_name}",
+        "from_user_name": display_name,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Member removed from family successfully"}
+
+@api_router.delete("/families/{family_id}/leave")
+async def leave_family(family_id: str, user: dict = Depends(get_current_user)):
+    """
+    Allow a member to leave the family themselves.
+    - Regular members can leave immediately
+    - Keeper can only leave if they are the only member, or after transferring keeper role
+    """
+    # Verify user belongs to this family
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    # Verify family exists
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    user_role = user.get("role")
+    is_keeper = user_role == "keeper"
+    
+    # Check if user is the keeper
+    if is_keeper:
+        # Count total members in the family
+        member_count = await db.users.count_documents({"family_id": family_id})
+        
+        if member_count > 1:
+            # Keeper cannot leave if there are other members
+            raise HTTPException(
+                status_code=400,
+                detail="Keeper cannot leave the family while other members exist. Please transfer the keeper role first or remove other members."
+            )
+        # If keeper is the only member, they can leave (family will be empty)
+    
+    # Remove user from family
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$unset": {"family_id": "", "role": ""}}
+    )
+    
+    # If keeper was the only member and left, optionally delete the family
+    # Or keep it for potential future members (your choice)
+    # For now, we'll keep the family but it will have no members
+    
+    # Create notification for family keeper (if there is one and it's not the leaving user)
+    if not is_keeper and family.get("owner_id") != user["id"]:
+        display_name = user.get("nickname") or user["name"]
+        notification_doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": family["owner_id"],
+            "type": "family_invite",
+            "message": f"{display_name} left your family: {family['name']}",
+            "from_user_name": display_name,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Successfully left the family"}
+
+@api_router.put("/families/{family_id}/transfer-keeper")
+async def transfer_keeper(
+    family_id: str,
+    transfer_data: FamilyTransferKeeperRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Transfer the keeper role from the current keeper to another member.
+    Only the current keeper can transfer their role.
+    """
+    # Verify user belongs to this family and is the keeper
+    if user.get("family_id") != family_id:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    
+    if user.get("role") != "keeper":
+        raise HTTPException(
+            status_code=403,
+            detail="Only the family keeper can transfer the keeper role"
+        )
+    
+    # Verify family exists
+    family = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    
+    # Prevent transferring to yourself
+    if transfer_data.new_keeper_id == user["id"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot transfer keeper role to yourself"
+        )
+    
+    # Verify the new keeper exists and is a member of this family
+    new_keeper = await db.users.find_one(
+        {"id": transfer_data.new_keeper_id, "family_id": family_id},
+        {"_id": 0}
+    )
+    if not new_keeper:
+        raise HTTPException(
+            status_code=404,
+            detail="New keeper not found or is not a member of this family"
+        )
+    
+    # Transfer keeper role
+    # 1. Update family owner_id to new keeper
+    await db.families.update_one(
+        {"id": family_id},
+        {"$set": {"owner_id": transfer_data.new_keeper_id}}
+    )
+    
+    # 2. Update new keeper's role to "keeper"
+    await db.users.update_one(
+        {"id": transfer_data.new_keeper_id},
+        {"$set": {"role": "keeper"}}
+    )
+    
+    # 3. Update old keeper's role to "member"
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"role": "member"}}
+    )
+    
+    # Create notifications
+    old_keeper_name = user.get("nickname") or user["name"]
+    new_keeper_name = new_keeper.get("nickname") or new_keeper["name"]
+    
+    # Notify new keeper
+    notification_doc_new = {
+        "id": str(uuid.uuid4()),
+        "user_id": transfer_data.new_keeper_id,
+        "type": "family_invite",
+        "message": f"You are now the keeper of {family['name']}",
+        "from_user_name": old_keeper_name,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc_new)
+    
+    # Notify other family members (optional - you can skip this if not needed)
+    other_members = await db.users.find(
+        {
+            "family_id": family_id,
+            "id": {"$nin": [user["id"], transfer_data.new_keeper_id]}
+        },
+        {"_id": 0, "id": 1}
+    ).to_list(100)
+    
+    if other_members:
+        notifications = []
+        for member in other_members:
+            notification_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": member["id"],
+                "type": "family_invite",
+                "message": f"{new_keeper_name} is now the keeper of {family['name']}",
+                "from_user_name": old_keeper_name,
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            notifications.append(notification_doc)
+        
+        if notifications:
+            await db.notifications.insert_many(notifications)
+    
+    return {"message": f"Keeper role successfully transferred to {new_keeper_name}"}
 
 # ===================== HEALTH CHECK =====================
 
