@@ -1,13 +1,18 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import PyMongoError
 import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
+from contextlib import asynccontextmanager
 import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
@@ -26,17 +31,63 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 7  # 7 days
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        await client.admin.command("ping")
+        logger.info("Database connection OK")
+    except PyMongoError as e:
+        logger.error("Database connection failed at startup: type=%s message=%s", type(e).__name__, e)
+    yield
+    client.close()
+
 # Create the main app
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True,
 )
 logger = logging.getLogger(__name__)
+
+# Exception handlers: log all errors to console
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.error("HTTPException path=%s status=%s detail=%s", request.url.path, exc.status_code, exc.detail)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, RequestValidationError):
+        return await request_validation_exception_handler(request, exc)
+    if isinstance(exc, PyMongoError):
+        logger.exception(
+            "Database error path=%s type=%s message=%s",
+            request.url.path, type(exc).__name__, str(exc)
+        )
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database unavailable. Please try again later."}
+        )
+    logger.exception("Unhandled exception path=%s", request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+# CORS Configuration - must be added before routers
+_cors_origins_raw = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000')
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(',') if o.strip()]
+logger.info(f"CORS origins configured: {_cors_origins}")
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 # ===================== MODELS =====================
 
@@ -200,15 +251,19 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("user_id")
         if not user_id:
+            logger.warning("Auth failed: token missing user_id")
             raise HTTPException(status_code=401, detail="Invalid token")
         
         user = await db.users.find_one({"id": user_id}, {"_id": 0})
         if not user:
+            logger.warning("Auth failed: user_id=%s not found", user_id)
             raise HTTPException(status_code=401, detail="User not found")
         return user
     except jwt.ExpiredSignatureError:
+        logger.warning("Auth failed: token expired")
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.warning("Auth failed: invalid token - %s", e)
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # ===================== NOTIFICATION V1 HELPERS =====================
@@ -1051,17 +1106,9 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
-# Include router and middleware
+# Include router
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
