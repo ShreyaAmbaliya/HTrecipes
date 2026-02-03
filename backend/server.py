@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import PyMongoError
 import os
@@ -17,6 +18,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
 import bcrypt
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -54,11 +56,104 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Maximum request body size: 50MB (for large base64 image payloads)
+MAX_REQUEST_BODY_SIZE = 50 * 1024 * 1024  # 50MB
+
+# Middleware to check request body size before processing
+class LargeBodyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Check Content-Length header for size validation
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                size = int(content_length)
+                if size > MAX_REQUEST_BODY_SIZE:
+                    logger.warning(
+                        "Request body too large path=%s size=%d max=%d",
+                        request.url.path,
+                        size,
+                        MAX_REQUEST_BODY_SIZE
+                    )
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "detail": (
+                                f"Request body too large ({size / (1024*1024):.1f}MB). "
+                                f"Maximum size is {MAX_REQUEST_BODY_SIZE // (1024*1024)}MB. "
+                                "Please reduce the number of photos or use smaller images."
+                            )
+                        }
+                    )
+            except ValueError:
+                pass
+        
+        # Let the request proceed - FastAPI will handle body reading
+        return await call_next(request)
+
 # Exception handlers: log all errors to console
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     logger.error("HTTPException path=%s status=%s detail=%s", request.url.path, exc.status_code, exc.detail)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors() if hasattr(exc, "errors") else []
+    for err in errors:
+        if err.get("type") == "json_invalid":
+            ctx = err.get("ctx", {})
+            error_msg = ctx.get("error", "Unknown JSON error")
+            logger.warning(
+                "JSON decode error path=%s type=%s ctx=%s loc=%s",
+                request.url.path,
+                err.get("type"),
+                ctx,
+                err.get("loc", []),
+            )
+            
+            # Check if it's an unterminated string (likely from truncated body)
+            if "Unterminated string" in str(error_msg) or "unterminated" in str(error_msg).lower():
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "detail": (
+                            "Request body appears to be truncated or too large. "
+                            "Please reduce the number of photos or use smaller images. "
+                            "Maximum request size is 50MB."
+                        )
+                    },
+                )
+            
+            # Check Content-Length to see if body might be too large
+            content_length = request.headers.get("content-length")
+            if content_length:
+                try:
+                    size_mb = int(content_length) / (1024 * 1024)
+                    if size_mb > 40:  # Close to our 50MB limit
+                        return JSONResponse(
+                            status_code=422,
+                            content={
+                                "detail": (
+                                    f"Request body is very large ({size_mb:.1f}MB). "
+                                    "Please reduce the number of photos or compress images before uploading."
+                                )
+                            },
+                        )
+                except ValueError:
+                    pass
+            
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": (
+                        "Invalid JSON in request body. Please check that all text fields are properly formatted "
+                        "and try reducing the number or size of photos."
+                    )
+                },
+            )
+    return await request_validation_exception_handler(request, exc)
+
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
@@ -80,6 +175,10 @@ async def general_exception_handler(request: Request, exc: Exception):
 _cors_origins_raw = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000')
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(',') if o.strip()]
 logger.info(f"CORS origins configured: {_cors_origins}")
+
+# Add middleware for large body handling (must be before CORS)
+app.add_middleware(LargeBodyMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -1111,4 +1210,12 @@ app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Configure uvicorn to handle larger request bodies
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8001,
+        limit_concurrency=1000,
+        limit_max_requests=1000,
+        timeout_keep_alive=30,
+    )
