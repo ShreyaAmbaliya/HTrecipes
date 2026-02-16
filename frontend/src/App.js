@@ -16,6 +16,53 @@ import { Card, CardContent } from "./components/ui/card";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Sanitize string for safe JSON: strip control chars, normalize line endings, ensure string
+function sanitizeForJson(value) {
+  if (value == null || value === "") return value === "" ? "" : null;
+  const s = String(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  return s;
+}
+
+// Resize/compress a data URL image to reduce payload size and avoid truncation
+function compressDataUrl(dataUrl, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const w = img.width;
+      const h = img.height;
+      const scale = w > maxWidth ? maxWidth / w : 1;
+      const cw = Math.round(w * scale);
+      const ch = Math.round(h * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, cw, ch);
+      try {
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function compressPhotoList(photos) {
+  if (!Array.isArray(photos) || photos.length === 0) return [];
+  const out = [];
+  for (const p of photos) {
+    if (typeof p !== "string") continue;
+    out.push(p.startsWith("data:") ? await compressDataUrl(p) : p);
+  }
+  return out;
+}
+
 // Theme Context
 const ThemeContext = createContext(null);
 
@@ -1007,16 +1054,32 @@ const AddRecipePage = () => {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/recipes`, {
-        ...formData,
-        ingredients: validIngredients
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
+      const photos = await compressPhotoList(formData.photos || []);
+      const payload = {
+        title: sanitizeForJson(formData.title),
+        ingredients: validIngredients.map((i) => sanitizeForJson(i)),
+        instructions: sanitizeForJson(formData.instructions),
+        story: sanitizeForJson(formData.story) || null,
+        photos,
+        cooking_time: formData.cooking_time ?? 30,
+        servings: formData.servings ?? 4,
+        category: sanitizeForJson(formData.category),
+        difficulty: formData.difficulty || "easy",
+      };
+      await axios.post(`${API}/recipes`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       toast.success("Recipe shared with the family!");
       navigate("/");
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to create recipe");
+      const detail = error.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.find((d) => d.msg)?.msg || detail?.[0]?.msg || "Failed to create recipe"
+        : detail || "Failed to create recipe";
+      toast.error(typeof msg === "string" ? msg : "Failed to create recipe");
     }
     setLoading(false);
   };
@@ -1394,17 +1457,32 @@ const EditRecipePage = () => {
 
     setSaving(true);
     try {
-      await axios.put(`${API}/recipes/${id}`, {
-        ...formData,
-        ingredients: validIngredients,
-        story: formData.story || null
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
+      const photos = await compressPhotoList(formData.photos || []);
+      const payload = {
+        title: sanitizeForJson(formData.title),
+        ingredients: validIngredients.map((i) => sanitizeForJson(i)),
+        instructions: sanitizeForJson(formData.instructions),
+        story: sanitizeForJson(formData.story) || null,
+        photos,
+        cooking_time: formData.cooking_time ?? 30,
+        servings: formData.servings ?? 4,
+        category: sanitizeForJson(formData.category),
+        difficulty: formData.difficulty || "easy",
+      };
+      await axios.put(`${API}/recipes/${id}`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       toast.success("Recipe updated successfully!");
       navigate(`/recipe/${id}`);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to update recipe");
+      const detail = error.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.find((d) => d.msg)?.msg || detail?.[0]?.msg || "Failed to update recipe"
+        : detail || "Failed to update recipe";
+      toast.error(typeof msg === "string" ? msg : "Failed to update recipe");
     }
     setSaving(false);
   };
