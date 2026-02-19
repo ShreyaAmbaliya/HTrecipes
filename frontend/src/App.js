@@ -1,9 +1,10 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext, useCallback } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link, useParams } from "react-router-dom";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { ChefHat, Utensils, Camera, Clock, Users, Flame, Heart, Plus, LogOut, Menu, X, Home, User, Search, Download, BookOpen, Moon, Sun, Edit, MessageCircle, Trash2, Send, Bell, Settings, Upload } from "lucide-react";
+import { ChefHat, Utensils, Camera, Clock, Users, Flame, Heart, Plus, LogOut, Menu, X, Home, User, Search, Download, BookOpen, Moon, Sun, Edit, MessageCircle, Trash2, Send, Bell, Settings, Upload, Copy, Crown, UserPlus } from "lucide-react";
+import * as familiesApi from "./api/families";
 import jsPDF from "jspdf";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
 // Sanitize string for safe JSON: strip control chars, normalize line endings, ensure string
@@ -168,8 +169,9 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Family Logo Component - HT Monogram with Crossed Spoon & Fork (French Creole Style)
+// Family Logo Component — app-logo (light) / app-logo-white (dark)
 const FamilyLogo = ({ size = "md", showText = true }) => {
+  const { isDark } = useTheme();
   const sizes = {
     sm: { container: "w-10 h-10", text: "text-lg" },
     md: { container: "w-12 h-12", text: "text-xl" },
@@ -177,95 +179,22 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
     xl: { container: "w-24 h-24", text: "text-3xl" }
   };
   const s = sizes[size];
-  
+  const logoSrc = isDark
+    ? `${process.env.PUBLIC_URL || ""}/app-logo-white.png`
+    : `${process.env.PUBLIC_URL || ""}/app-logo.png`;
+
   return (
     <div className="flex items-center gap-3">
-      <div className={`${s.container} relative`}>
-        <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            {/* Caribbean terracotta gradient */}
-            <linearGradient id="creoleRing" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#D4704A" />
-              <stop offset="100%" stopColor="#A65835" />
-            </linearGradient>
-            {/* Antique gold for utensils */}
-            <linearGradient id="antiqueGold" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#C9A227" />
-              <stop offset="50%" stopColor="#B8860B" />
-              <stop offset="100%" stopColor="#996515" />
-            </linearGradient>
-          </defs>
-          
-          {/* Outer warm ring */}
-          <circle cx="50" cy="50" r="48" fill="url(#creoleRing)" />
-          
-          {/* Cream inner circle */}
-          <circle cx="50" cy="50" r="43" fill="#FBF7F2" />
-          
-          {/* Crossed Spoon - diagonal from top-left to bottom-right */}
-          <g transform="rotate(-45 50 50)">
-            {/* Spoon bowl */}
-            <ellipse cx="50" cy="18" rx="7" ry="10" fill="url(#antiqueGold)" />
-            {/* Spoon neck */}
-            <rect x="47" y="26" width="6" height="8" fill="url(#antiqueGold)" />
-            {/* Spoon handle */}
-            <rect x="48" y="32" width="4" height="50" rx="2" fill="url(#antiqueGold)" />
-          </g>
-          
-          {/* Crossed Fork - diagonal from top-right to bottom-left */}
-          <g transform="rotate(45 50 50)">
-            {/* Fork tines */}
-            <rect x="43" y="14" width="2.5" height="12" rx="1" fill="url(#antiqueGold)" />
-            <rect x="47" y="14" width="2.5" height="14" rx="1" fill="url(#antiqueGold)" />
-            <rect x="51" y="14" width="2.5" height="14" rx="1" fill="url(#antiqueGold)" />
-            <rect x="55" y="14" width="2.5" height="12" rx="1" fill="url(#antiqueGold)" />
-            {/* Fork base connecting tines */}
-            <rect x="43" y="26" width="14.5" height="6" rx="1" fill="url(#antiqueGold)" />
-            {/* Fork handle */}
-            <rect x="48" y="30" width="4" height="52" rx="2" fill="url(#antiqueGold)" />
-          </g>
-          
-          {/* Center circle for monogram */}
-          <circle cx="50" cy="50" r="20" fill="#FBF7F2" stroke="url(#antiqueGold)" strokeWidth="2" />
-          
-          {/* HT Monogram - elegant French Creole script */}
-          <text 
-            x="50" 
-            y="57" 
-            textAnchor="middle"
-            fontFamily="'Dancing Script', cursive" 
-            fontSize="26" 
-            fontWeight="700" 
-            fill="#4A3728"
-            style={{letterSpacing: '-1px'}}
-          >HT</text>
-          
-          {/* Decorative flourish curves - top */}
-          <path 
-            d="M 30 15 Q 50 8 70 15" 
-            fill="none" 
-            stroke="#4A7A5E" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          
-          {/* Decorative flourish curves - bottom */}
-          <path 
-            d="M 30 85 Q 50 92 70 85" 
-            fill="none" 
-            stroke="#4A7A5E" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          
-          {/* Gold accent dots */}
-          <circle cx="50" cy="5" r="3" fill="#C9A227" />
-          <circle cx="50" cy="95" r="3" fill="#C9A227" />
-        </svg>
+      <div className={`${s.container} relative flex shrink-0`}>
+        <img
+          src={logoSrc}
+          alt="Legacy Table"
+          className="w-full h-full object-contain"
+        />
       </div>
       {showText && (
         <div className="flex flex-col">
-          <span style={{fontFamily: "'Dancing Script', cursive"}} className={`${s.text} font-semibold text-foreground leading-tight`}>Honor Touré</span>
+          <span style={{ fontFamily: "'Dancing Script', cursive" }} className={`${s.text} font-semibold text-foreground leading-tight`}>Legacy Table</span>
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Family Recipes</span>
         </div>
       )}
@@ -372,7 +301,7 @@ const Navigation = () => {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2" data-testid="nav-logo">
               <FamilyLogo size="sm" showText={false} />
-              <span className="font-serif text-xl font-semibold text-foreground hidden sm:block">Honor Touré</span>
+              <span className="font-serif text-xl font-semibold text-foreground hidden sm:block">Legacy Table</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -408,6 +337,14 @@ const Navigation = () => {
               >
                 <BookOpen className="w-4 h-4" />
                 Family Cookbook
+              </Link>
+              <Link 
+                to="/family" 
+                className={`nav-link flex items-center gap-2 text-sm font-medium ${location.pathname === '/family' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                data-testid="nav-family"
+              >
+                <Users className="w-4 h-4" />
+                Family
               </Link>
             </div>
 
@@ -475,16 +412,27 @@ const Navigation = () => {
               </button>
 
               {/* User Avatar & Settings */}
-              <Link to="/settings" className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="nav-settings">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={getDisplayName()} className="w-8 h-8 rounded-full object-cover border-2 border-border" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
-                  </div>
+              <div className="flex items-center gap-2">
+                {user?.role && (
+                  <span 
+                    className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize"
+                    data-testid="nav-role-badge"
+                    title={user.role === "keeper" ? "Family keeper" : "Family member"}
+                  >
+                    {user.role}
+                  </span>
                 )}
-                <span className="text-sm font-medium text-foreground">{getDisplayName()}</span>
-              </Link>
+                <Link to="/settings" className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="nav-settings">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={getDisplayName()} className="w-8 h-8 rounded-full object-cover border-2 border-border" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-foreground">{getDisplayName()}</span>
+                </Link>
+              </div>
 
               <Button 
                 variant="ghost" 
@@ -559,6 +507,15 @@ const Navigation = () => {
             <span className="font-medium">Family Cookbook</span>
           </Link>
           <Link 
+            to="/family" 
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
+            data-testid="mobile-nav-family"
+          >
+            <Users className="w-5 h-5 text-primary" />
+            <span className="font-medium">Family</span>
+          </Link>
+          <Link 
             to="/settings" 
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
@@ -576,7 +533,14 @@ const Navigation = () => {
                 </div>
               )}
               <div>
-                <div className="font-medium">{getDisplayName()}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium">{getDisplayName()}</span>
+                  {user?.role && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                      {user.role}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">{user.email}</div>
               </div>
             </div>
@@ -645,7 +609,7 @@ const LoginPage = () => {
       <div className="auth-card animate-fade-in">
         <div className="text-center mb-8 flex flex-col items-center">
           <FamilyLogo size="lg" showText={false} />
-          <h1 className="font-serif text-3xl font-bold text-foreground mb-2 mt-4">Honor Touré Family</h1>
+          <h1 className="font-serif text-3xl font-bold text-foreground mb-2 mt-4">Legacy Table</h1>
           <p className="text-muted-foreground">Share your culinary heritage</p>
         </div>
 
@@ -783,7 +747,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   useEffect(() => {
     fetchRecipes();
@@ -831,7 +795,7 @@ const HomePage = () => {
               <FamilyLogo size="xl" showText={false} />
             </div>
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4">
-              Honor Touré<br />Family Recipes
+              Legacy Table<br />Family Recipes
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
               Preserve and share our family's culinary traditions with love
@@ -892,6 +856,26 @@ const HomePage = () => {
             ))}
           </div>
         </div>
+
+        {/* Recipe scope copy (family vs legacy) */}
+        {!loading && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+            <p className="text-sm text-muted-foreground">
+              {user?.family_id ? "Showing family recipes." : "Showing legacy recipes."}
+            </p>
+            {!user?.family_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full text-primary border-primary"
+                onClick={() => navigate("/family")}
+                data-testid="create-join-family-cta"
+              >
+                Create a family or join with invite code
+              </Button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Recipe Grid */}
@@ -1364,6 +1348,7 @@ const EditRecipePage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const { token, user } = useAuth();
   const navigate = useNavigate();
 
@@ -1379,14 +1364,15 @@ const EditRecipePage = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const recipe = response.data;
-      
-      // Check if user is the author
-      if (recipe.author_id !== user?.id) {
+      setAccessDenied(false);
+
+      // Check if user is the author (or keeper can edit family recipes)
+      if (recipe.author_id !== user?.id && user?.role !== "keeper") {
         toast.error("You can only edit your own recipes");
         navigate(`/recipe/${id}`);
         return;
       }
-      
+
       setFormData({
         title: recipe.title,
         ingredients: recipe.ingredients.length > 0 ? recipe.ingredients : [""],
@@ -1399,8 +1385,12 @@ const EditRecipePage = () => {
         difficulty: recipe.difficulty
       });
     } catch (error) {
-      toast.error("Recipe not found");
-      navigate("/");
+      if (error.response?.status === 403) {
+        setAccessDenied(true);
+      } else {
+        toast.error("Recipe not found");
+        navigate("/");
+      }
     }
     setLoading(false);
   };
@@ -1498,6 +1488,26 @@ const EditRecipePage = () => {
             <div className="skeleton h-40 rounded-xl" />
             <div className="skeleton h-12 rounded-xl" />
             <div className="skeleton h-32 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="edit-recipe-page">
+        <Navigation />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+          <div className="text-center py-12 px-4 rounded-2xl bg-muted/50 border border-border">
+            <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">You don't have access to this recipe</h2>
+            <p className="text-muted-foreground mb-6">Join the family to edit it, or it may be private to another family.</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button onClick={() => navigate("/")} className="rounded-full">Go home</Button>
+              {!user?.family_id && (
+                <Button variant="outline" onClick={() => navigate("/family")} className="rounded-full border-primary text-primary">Join a family</Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1731,6 +1741,7 @@ const RecipeDetailPage = () => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -1746,9 +1757,15 @@ const RecipeDetailPage = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRecipe(response.data);
+      setAccessDenied(false);
     } catch (error) {
-      toast.error("Recipe not found");
-      navigate("/");
+      if (error.response?.status === 403) {
+        setAccessDenied(true);
+        setRecipe(null);
+      } else {
+        toast.error("Recipe not found");
+        navigate("/");
+      }
     }
     setLoading(false);
   };
@@ -1805,9 +1822,15 @@ const RecipeDetailPage = () => {
       toast.success("Recipe deleted");
       navigate("/");
     } catch (error) {
-      toast.error("Failed to delete recipe");
+      if (error.response?.status === 403) {
+        toast.error("You can't delete this recipe");
+      } else {
+        toast.error("Failed to delete recipe");
+      }
     }
   };
+
+  const canDeleteRecipe = recipe && (user?.id === recipe.author_id || user?.role === "keeper");
 
   const getDifficultyClass = (difficulty) => {
     switch (difficulty?.toLowerCase()) {
@@ -1826,6 +1849,30 @@ const RecipeDetailPage = () => {
           <div className="skeleton h-96 rounded-3xl mb-8" />
           <div className="skeleton h-10 w-2/3 mb-4" />
           <div className="skeleton h-6 w-1/3" />
+        </div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="recipe-detail-page">
+        <Navigation />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+          <div className="text-center py-12 px-4 rounded-2xl bg-muted/50 border border-border">
+            <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">You don't have access to this recipe</h2>
+            <p className="text-muted-foreground mb-6">Join the family to see it, or it may be private to another family.</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button onClick={() => navigate("/")} className="rounded-full" data-testid="recipe-403-go-home">
+                Go home
+              </Button>
+              {!user?.family_id && (
+                <Button variant="outline" onClick={() => navigate("/family")} className="rounded-full border-primary text-primary" data-testid="recipe-403-join-family">
+                  Join a family
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1883,27 +1930,31 @@ const RecipeDetailPage = () => {
                   </span>
                 </div>
               </div>
-              {user?.id === recipe.author_id && (
+              {(user?.id === recipe.author_id || user?.role === "keeper") && (
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
-                    className="rounded-full"
-                    data-testid="edit-recipe-btn"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={handleDelete}
-                    className="rounded-full"
-                    data-testid="delete-recipe-btn"
-                  >
-                  Delete
-                  </Button>
+                  {user?.id === recipe.author_id && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
+                      className="rounded-full"
+                      data-testid="edit-recipe-btn"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  {canDeleteRecipe && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleDelete}
+                      className="rounded-full"
+                      data-testid="delete-recipe-btn"
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -2057,6 +2108,424 @@ const RecipeDetailPage = () => {
   );
 };
 
+// Family page: Create / Join when no family; Family Settings when in a family
+const FamilyPage = () => {
+  const { user, token, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const [family, setFamily] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [createName, setCreateName] = useState("");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // 'leave' | 'delete' | 'remove-{id}' | 'transfer-{id}'
+
+  const refreshUser = async () => {
+    try {
+      const res = await axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      updateUser(res.data);
+    } catch {
+      toast.error("Failed to refresh profile");
+    }
+  };
+
+  const fetchFamilyData = useCallback(async () => {
+    if (!user?.family_id || !token) return;
+    setLoading(true);
+    try {
+      const [fam, mems] = await Promise.all([
+        familiesApi.getFamily(token, user.family_id),
+        familiesApi.getFamilyMembers(token, user.family_id),
+      ]);
+      setFamily(fam);
+      setMembers(mems);
+      setEditName(fam.name || "");
+      setEditDescription(fam.description || "");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to load family";
+      toast.error(msg);
+      setFamily(null);
+      setMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.family_id, token]);
+
+  useEffect(() => {
+    if (!user?.family_id) {
+      setLoading(false);
+      return;
+    }
+    fetchFamilyData();
+  }, [user?.family_id, fetchFamilyData]);
+
+  const handleCreateFamily = async (e) => {
+    e.preventDefault();
+    if (!createName.trim()) {
+      toast.error("Please enter a family name");
+      return;
+    }
+    setCreateSubmitting(true);
+    try {
+      await familiesApi.createFamily(token, { name: createName.trim(), description: createDescription.trim() || null });
+      toast.success("Family created! You're the Keeper.");
+      await refreshUser();
+      setCreateName("");
+      setCreateDescription("");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to create family";
+      toast.error(msg);
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  const handleJoinFamily = async (e) => {
+    e.preventDefault();
+    if (!joinCode.trim()) {
+      toast.error("Please enter an invite code");
+      return;
+    }
+    setJoinSubmitting(true);
+    try {
+      await familiesApi.joinFamily(token, { invite_code: joinCode.trim() });
+      toast.success("You joined the family!");
+      await refreshUser();
+      setJoinCode("");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Invalid or expired invite code";
+      toast.error(msg);
+    } finally {
+      setJoinSubmitting(false);
+    }
+  };
+
+  const handleCopyInviteCode = () => {
+    if (!family?.invite_code) return;
+    navigator.clipboard.writeText(family.invite_code);
+    toast.success("Invite code copied to clipboard");
+  };
+
+  const handleLeaveFamily = async () => {
+    if (!user?.family_id || !window.confirm("Are you sure you want to leave this family? You'll lose access to family recipes until you join again.")) return;
+    setActionLoading("leave");
+    try {
+      await familiesApi.leaveFamily(token, user.family_id);
+      toast.success("You left the family.");
+      await refreshUser();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not leave family";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteFamily = async () => {
+    if (!user?.family_id || !window.confirm("Permanently delete this family? All members will be removed and family recipes will become legacy. This cannot be undone.")) return;
+    setActionLoading("delete");
+    try {
+      await familiesApi.deleteFamily(token, user.family_id);
+      toast.success("Family deleted.");
+      await refreshUser();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not delete family";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!user?.family_id || !window.confirm("Remove this member from the family? They will lose access to family recipes.")) return;
+    setActionLoading(`remove-${memberId}`);
+    try {
+      await familiesApi.removeMember(token, user.family_id, memberId);
+      toast.success("Member removed.");
+      await fetchFamilyData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not remove member";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTransferKeeper = async (newKeeperId) => {
+    if (!user?.family_id || !window.confirm("Transfer the Keeper role to this member? You will become a Member and they will manage the family.")) return;
+    setActionLoading(`transfer-${newKeeperId}`);
+    try {
+      await familiesApi.transferKeeper(token, user.family_id, { new_keeper_id: newKeeperId });
+      toast.success("Keeper role transferred.");
+      await refreshUser();
+      await fetchFamilyData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not transfer role";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!user?.family_id) return;
+    setEditSubmitting(true);
+    try {
+      await familiesApi.updateFamily(token, user.family_id, { name: editName.trim(), description: editDescription.trim() || null });
+      toast.success("Family updated.");
+      setEditMode(false);
+      await fetchFamilyData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to update family";
+      toast.error(msg);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const isKeeper = user?.role === "keeper";
+  const getMemberDisplayName = (m) => m.nickname || m.name || m.email || "Member";
+
+  if (!user?.family_id) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="family-page">
+        <Navigation />
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Family</h1>
+          <p className="text-muted-foreground mb-8">Create or join a family to share recipes.</p>
+
+          <div className="space-y-6">
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <UserPlus className="w-6 h-6 text-primary" />
+                  </div>
+                  <h2 className="font-serif text-xl font-semibold">Create a family</h2>
+                </div>
+                <form onSubmit={handleCreateFamily} className="space-y-4">
+                  <div>
+                    <Label htmlFor="create-name">Family name</Label>
+                    <Input
+                      id="create-name"
+                      placeholder="e.g. Smith Family"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 mt-1"
+                      data-testid="create-family-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="create-desc">Description (optional)</Label>
+                    <Textarea
+                      id="create-desc"
+                      placeholder="Our family recipe collection"
+                      value={createDescription}
+                      onChange={(e) => setCreateDescription(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 mt-1 min-h-[80px]"
+                      data-testid="create-family-description"
+                    />
+                  </div>
+                  <Button type="submit" className="rounded-full" disabled={createSubmitting} data-testid="create-family-btn">
+                    {createSubmitting ? "Creating…" : "Create family"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-primary" />
+                  </div>
+                  <h2 className="font-serif text-xl font-semibold">Join with invite code</h2>
+                </div>
+                <form onSubmit={handleJoinFamily} className="space-y-4">
+                  <div>
+                    <Label htmlFor="join-code">Invite code</Label>
+                    <Input
+                      id="join-code"
+                      placeholder="Enter code from your family Keeper"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 mt-1 font-mono"
+                      data-testid="join-family-code"
+                    />
+                  </div>
+                  <Button type="submit" variant="outline" className="rounded-full border-2 border-primary text-primary" disabled={joinSubmitting} data-testid="join-family-btn">
+                    {joinSubmitting ? "Joining…" : "Join family"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="family-page">
+      <Navigation />
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Family settings</h1>
+        <p className="text-muted-foreground mb-8">Manage your family and invite code.</p>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+          </div>
+        ) : family ? (
+          <div className="space-y-6">
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-6">
+                {editMode ? (
+                  <form onSubmit={handleSaveEdit} className="space-y-4">
+                    <Label>Family name</Label>
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="rounded-xl border-2 border-border/50"
+                      data-testid="edit-family-name"
+                    />
+                    <Label>Description (optional)</Label>
+                    <Textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 min-h-[80px]"
+                      data-testid="edit-family-description"
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={editSubmitting} data-testid="save-family-edit">
+                        {editSubmitting ? "Saving…" : "Save"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => { setEditMode(false); setEditName(family.name); setEditDescription(family.description || ""); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h2 className="font-serif text-xl font-semibold">{family.name}</h2>
+                      {isKeeper && (
+                        <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="rounded-full" data-testid="edit-family-btn">
+                          <Edit className="w-4 h-4 mr-1" /> Edit
+                        </Button>
+                      )}
+                    </div>
+                    {family.description && <p className="text-muted-foreground text-sm mt-1">{family.description}</p>}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-6">
+                <h3 className="font-semibold mb-2">Invite code</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <code className="px-3 py-2 rounded-lg bg-muted font-mono text-sm">{family.invite_code}</code>
+                  <Button variant="outline" size="sm" onClick={handleCopyInviteCode} className="rounded-full" data-testid="copy-invite-code">
+                    <Copy className="w-4 h-4 mr-1" /> Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Share this code so others can join your family.</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-6">
+                <h3 className="font-semibold mb-4">Members</h3>
+                <ul className="space-y-3">
+                  {members.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between gap-2 flex-wrap py-2 border-b border-border/50 last:border-0">
+                      <div className="flex items-center gap-2">
+                        {m.avatar ? (
+                          <img src={m.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                            {getMemberDisplayName(m).charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="font-medium">{getMemberDisplayName(m)}</span>
+                        {m.role === "keeper" && <Crown className="w-4 h-4 text-primary" title="Keeper" />}
+                        <Badge variant="secondary" className="capitalize text-xs">{m.role}</Badge>
+                      </div>
+                      {isKeeper && m.id !== user.id && (
+                        <div className="flex items-center gap-1">
+                          {m.role === "member" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full text-xs"
+                              disabled={!!actionLoading}
+                              onClick={() => handleTransferKeeper(m.id)}
+                              data-testid={`transfer-keeper-${m.id}`}
+                            >
+                              {actionLoading === `transfer-${m.id}` ? "…" : "Make Keeper"}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive rounded-full text-xs"
+                            disabled={!!actionLoading}
+                            onClick={() => handleRemoveMember(m.id)}
+                            data-testid={`remove-member-${m.id}`}
+                          >
+                            {actionLoading === `remove-${m.id}` ? "…" : "Remove"}
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="rounded-full border-destructive text-destructive hover:bg-destructive/10"
+                disabled={!!actionLoading}
+                onClick={handleLeaveFamily}
+                data-testid="leave-family-btn"
+              >
+                {actionLoading === "leave" ? "Leaving…" : "Leave family"}
+              </Button>
+              {isKeeper && (
+                <Button
+                  variant="outline"
+                  className="rounded-full border-destructive text-destructive hover:bg-destructive/10"
+                  disabled={!!actionLoading}
+                  onClick={handleDeleteFamily}
+                  data-testid="delete-family-btn"
+                >
+                  {actionLoading === "delete" ? "Deleting…" : "Delete family"}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-8 text-center text-muted-foreground">
+              Could not load family. You may have left or been removed.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Settings Page (Profile Management)
 const SettingsPage = () => {
   const { user, token, updateUser, getDisplayName } = useAuth();
@@ -2173,6 +2642,43 @@ const SettingsPage = () => {
                   <p className="text-xs text-muted-foreground">
                     Your nickname will be shown instead of your full name on recipes and comments.
                   </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Family & Role */}
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Family & Role</h3>
+              <div className="space-y-3">
+                {user?.role && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Role</Label>
+                    <p className="text-foreground">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-primary/10 text-primary capitalize">
+                        {user.role}
+                      </span>
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Family</Label>
+                  {user?.family_id ? (
+                    <p className="text-foreground flex items-center gap-2 flex-wrap">
+                      <span>You're in a family.</span>
+                      <Button variant="link" className="p-0 h-auto text-primary font-medium" onClick={() => navigate("/family")} data-testid="settings-family-link">
+                        Family settings →
+                      </Button>
+                    </p>
+                  ) : (
+                    <p className="text-foreground flex items-center gap-2 flex-wrap">
+                      <span>You're not in a family.</span>
+                      <Button variant="link" className="p-0 h-auto text-primary font-medium" onClick={() => navigate("/family")} data-testid="settings-join-family-link">
+                        Create or join a family →
+                      </Button>
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -2376,7 +2882,7 @@ const CookbookPage = () => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(36);
       doc.setTextColor(74, 58, 51); // Warm charcoal
-      doc.text("Honor Touré", pageWidth / 2, 80, { align: "center" });
+      doc.text("Legacy Table", pageWidth / 2, 80, { align: "center" });
       doc.setFontSize(28);
       doc.text("Family Cookbook", pageWidth / 2, 100, { align: "center" });
       
@@ -2588,7 +3094,7 @@ const CookbookPage = () => {
       }
 
       // Save PDF
-      doc.save("Honor_Toure_Family_Cookbook.pdf");
+      doc.save("Legacy_Table_Family_Cookbook.pdf");
       toast.success("Cookbook generated successfully!");
     } catch (error) {
       console.error("PDF generation error:", error);
@@ -2734,6 +3240,7 @@ function App() {
               <Route path="/recipe/:id/edit" element={<ProtectedRoute><EditRecipePage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/family" element={<ProtectedRoute><FamilyPage /></ProtectedRoute>} />
               <Route path="/cookbook" element={<ProtectedRoute><CookbookPage /></ProtectedRoute>} />
             </Routes>
           </BrowserRouter>
