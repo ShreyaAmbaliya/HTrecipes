@@ -72,6 +72,22 @@
     background: hsla(14, 77%, 62%, 0.05);
 }
 
+/* Dark mode styles for photo upload zone */
+.dark .photo-upload-zone {
+    border-color: hsl(30, 10%, 40%);
+    background: hsl(30, 10%, 20%);
+}
+
+.dark .photo-upload-zone:hover {
+    border-color: hsl(14, 77%, 62%);
+    background: hsl(30, 10%, 25%);
+}
+
+.dark .photo-upload-zone.dragging {
+    border-color: hsl(14, 77%, 62%);
+    background: hsla(14, 77%, 62%, 0.15);
+}
+
 /* Photo Preview Grid */
 .photo-preview-grid {
     display: grid;

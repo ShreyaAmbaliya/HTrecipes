@@ -623,7 +623,7 @@ const LoginPage = () => {
                 placeholder="Your name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
                 required={!isLogin}
                 data-testid="input-name"
               />
@@ -637,7 +637,7 @@ const LoginPage = () => {
               placeholder="your@email.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="input-email"
             />
@@ -650,7 +650,7 @@ const LoginPage = () => {
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="input-password"
             />
@@ -1128,16 +1128,7 @@ const AddRecipePage = () => {
                   data-testid="photo-input"
                 />
               </label>
-              <Button 
-                type="button" 
-                onClick={startCamera}
-                variant="outline"
-                className="rounded-xl px-6 py-8 border-2 border-dashed"
-                data-testid="take-photo-btn"
-              >
-                <Camera className="w-6 h-6 mr-2" />
-                Take Photo
-              </Button>
+             
             </div>
 
             {formData.photos.length > 0 && (
@@ -1167,7 +1158,7 @@ const AddRecipePage = () => {
               placeholder="e.g., Grandma's Special Jollof Rice"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="input-title"
             />
@@ -1181,7 +1172,7 @@ const AddRecipePage = () => {
                 value={formData.category} 
                 onValueChange={(value) => setFormData({ ...formData, category: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="select-category">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="select-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1197,7 +1188,7 @@ const AddRecipePage = () => {
                 value={formData.difficulty} 
                 onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="select-difficulty">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="select-difficulty">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1219,7 +1210,7 @@ const AddRecipePage = () => {
                 min="1"
                 value={formData.cooking_time}
                 onChange={(e) => setFormData({ ...formData, cooking_time: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="input-time"
               />
             </div>
@@ -1231,7 +1222,7 @@ const AddRecipePage = () => {
                 min="1"
                 value={formData.servings}
                 onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="input-servings"
               />
             </div>
@@ -1247,7 +1238,7 @@ const AddRecipePage = () => {
                     placeholder={`Ingredient ${index + 1}`}
                     value={ingredient}
                     onChange={(e) => handleIngredientChange(index, e.target.value)}
-                    className="rounded-xl border-2 border-border/50"
+                    className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                     data-testid={`ingredient-${index}`}
                   />
                   {formData.ingredients.length > 1 && (
@@ -1284,7 +1275,7 @@ const AddRecipePage = () => {
               placeholder="Write the step-by-step cooking instructions..."
               value={formData.instructions}
               onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[200px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[200px] resize-y"
               required
               data-testid="input-instructions"
             />
@@ -1300,7 +1291,7 @@ const AddRecipePage = () => {
               placeholder="Share the story of this recipe... Where did it come from? Who passed it down? What memories does it hold for your family?"
               value={formData.story}
               onChange={(e) => setFormData({ ...formData, story: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[120px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[120px] resize-y"
               data-testid="input-story"
             />
             <p className="text-xs text-muted-foreground">Tell us about the history, traditions, or special memories connected to this dish.</p>
@@ -1570,7 +1561,7 @@ const EditRecipePage = () => {
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-card px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="edit-input-title"
             />
@@ -1584,7 +1575,7 @@ const EditRecipePage = () => {
                 value={formData.category} 
                 onValueChange={(value) => setFormData({ ...formData, category: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="edit-select-category">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="edit-select-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1600,7 +1591,7 @@ const EditRecipePage = () => {
                 value={formData.difficulty} 
                 onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="edit-select-difficulty">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="edit-select-difficulty">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1622,7 +1613,7 @@ const EditRecipePage = () => {
                 min="1"
                 value={formData.cooking_time}
                 onChange={(e) => setFormData({ ...formData, cooking_time: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="edit-input-time"
               />
             </div>
@@ -1634,7 +1625,7 @@ const EditRecipePage = () => {
                 min="1"
                 value={formData.servings}
                 onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="edit-input-servings"
               />
             </div>
@@ -1650,7 +1641,7 @@ const EditRecipePage = () => {
                     placeholder={`Ingredient ${index + 1}`}
                     value={ingredient}
                     onChange={(e) => handleIngredientChange(index, e.target.value)}
-                    className="rounded-xl border-2 border-border/50"
+                    className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                     data-testid={`edit-ingredient-${index}`}
                   />
                   {formData.ingredients.length > 1 && (
@@ -1686,7 +1677,7 @@ const EditRecipePage = () => {
               id="instructions"
               value={formData.instructions}
               onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[200px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[200px] resize-y"
               required
               data-testid="edit-input-instructions"
             />
@@ -1702,7 +1693,7 @@ const EditRecipePage = () => {
               placeholder="Share the story of this recipe..."
               value={formData.story}
               onChange={(e) => setFormData({ ...formData, story: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[120px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[120px] resize-y"
               data-testid="edit-input-story"
             />
           </div>
@@ -2048,7 +2039,7 @@ const RecipeDetailPage = () => {
                   placeholder="Share your thoughts about this recipe..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="rounded-xl border-2 border-border/50"
+                  className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                   data-testid="comment-input"
                 />
               </div>
@@ -2318,7 +2309,7 @@ const FamilyPage = () => {
                       placeholder="e.g. Smith Family"
                       value={createName}
                       onChange={(e) => setCreateName(e.target.value)}
-                      className="rounded-xl border-2 border-border/50 mt-1"
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 mt-1"
                       data-testid="create-family-name"
                     />
                   </div>
@@ -2329,7 +2320,7 @@ const FamilyPage = () => {
                       placeholder="Our family recipe collection"
                       value={createDescription}
                       onChange={(e) => setCreateDescription(e.target.value)}
-                      className="rounded-xl border-2 border-border/50 mt-1 min-h-[80px]"
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 mt-1 min-h-[80px]"
                       data-testid="create-family-description"
                     />
                   </div>
@@ -2356,7 +2347,7 @@ const FamilyPage = () => {
                       placeholder="Enter code from your family Keeper"
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value)}
-                      className="rounded-xl border-2 border-border/50 mt-1 font-mono"
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 mt-1 font-mono"
                       data-testid="join-family-code"
                     />
                   </div>
@@ -2393,14 +2384,14 @@ const FamilyPage = () => {
                     <Input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="rounded-xl border-2 border-border/50"
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                       data-testid="edit-family-name"
                     />
                     <Label>Description (optional)</Label>
                     <Textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="rounded-xl border-2 border-border/50 min-h-[80px]"
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[80px]"
                       data-testid="edit-family-description"
                     />
                     <div className="flex gap-2">
@@ -2636,7 +2627,7 @@ const SettingsPage = () => {
                     placeholder="Enter a nickname..."
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="rounded-xl border-2 border-border/50 max-w-sm"
+                    className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 max-w-sm"
                     data-testid="nickname-input"
                   />
                   <p className="text-xs text-muted-foreground">
