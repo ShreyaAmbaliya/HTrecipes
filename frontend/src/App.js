@@ -13,6 +13,16 @@ import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
+import { Checkbox } from "./components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "./components/ui/alert-dialog";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
@@ -26,6 +36,8 @@ function sanitizeForJson(value) {
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   return s;
 }
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value || "").trim());
 
 // Resize/compress a data URL image to reduce payload size and avoid truncation
 function compressDataUrl(dataUrl, maxWidth = 1200, quality = 0.8) {
@@ -3215,7 +3227,335 @@ const CookbookPage = () => {
   );
 };
 
-// Import useParams
+// Delete Account Page
+const DeleteAccountPage = () => {
+  const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [understood, setUnderstood] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({ email: false, confirmEmail: false });
+  const { user } = useAuth();
+
+  const emailTrimmed = email.trim();
+  const confirmTrimmed = confirmEmail.trim();
+  const emailValid = isValidEmail(emailTrimmed);
+  const confirmEmailValid = isValidEmail(confirmTrimmed);
+  const emailsMatch = emailTrimmed.toLowerCase() === confirmTrimmed.toLowerCase();
+  const canSubmit = emailValid && confirmEmailValid && understood && emailsMatch;
+
+  const showEmailError = touched.email && emailTrimmed && !emailValid;
+  const showConfirmError = touched.confirmEmail && confirmTrimmed && !confirmEmailValid;
+  const showMatchError = touched.confirmEmail && confirmTrimmed && confirmEmailValid && !emailsMatch;
+
+  const handleRequestDeletion = (e) => {
+    e.preventDefault();
+    setTouched({ email: true, confirmEmail: true });
+    if (!emailValid || !confirmEmailValid) {
+      toast.error("Please enter valid email addresses.");
+      return;
+    }
+    if (!emailsMatch) {
+      toast.error("Email addresses do not match.");
+      return;
+    }
+    if (!understood) {
+      toast.error("Please confirm that you understand this action is permanent.");
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/delete-account`, { email: email.trim().toLowerCase() });
+      toast.success("Your deletion request has been received. We will process it within 7 business days and notify you by email.");
+      setEmail("");
+      setConfirmEmail("");
+      setUnderstood(false);
+      setShowConfirm(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Request failed");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col" data-testid="delete-account-page">
+      {user ? <Navigation /> : (
+        <header className="border-b border-border/50 bg-card/50 sticky top-0 z-30">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <FamilyLogo size="sm" showText={true} />
+            <Link to="/login" className="text-sm font-medium text-primary hover:underline">Back to Login</Link>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <h1 className="font-serif text-3xl font-bold text-foreground mb-8">Delete Account – Legacy Table</h1>
+
+        <section className="mb-8 animate-fade-in">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-2">Request Account Deletion</h2>
+          <p className="text-muted-foreground text-base leading-relaxed">
+            If you would like to delete your Legacy Table account, you can submit a request below.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-3">What This Means</h2>
+          <p className="text-muted-foreground text-sm mb-2">By requesting account deletion:</p>
+          <ul className="list-disc pl-6 space-y-1 text-muted-foreground text-sm">
+            <li>Your account will be permanently deleted</li>
+            <li>Your personal information will be removed</li>
+            <li>You will no longer be able to log in</li>
+            <li>This action cannot be undone</li>
+          </ul>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-3">Deletion Timeline</h2>
+          <ul className="list-disc pl-6 space-y-1 text-muted-foreground text-sm">
+            <li>Requests are processed within 7 business days</li>
+            <li>You will receive a confirmation email once completed</li>
+          </ul>
+        </section>
+
+        <section className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-lg mb-8">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-5">Delete Account Form</h2>
+          <form onSubmit={handleRequestDeletion} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="delete-email" className="text-sm font-semibold text-foreground">Email Address</Label>
+              <Input
+                id="delete-email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+                className={`rounded-xl border-2 bg-background px-4 py-3 text-foreground focus:border-primary ${showEmailError ? "border-destructive" : "border-border/50"}`}
+                required
+                aria-invalid={showEmailError}
+              />
+              {showEmailError && (
+                <p className="text-destructive text-sm">Please enter a valid email address.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="delete-confirm-email" className="text-sm font-semibold text-foreground">Confirm Email Address</Label>
+              <Input
+                id="delete-confirm-email"
+                type="email"
+                placeholder="your@email.com"
+                value={confirmEmail}
+                onChange={(e) => setConfirmEmail(e.target.value)}
+                onBlur={() => setTouched((t) => ({ ...t, confirmEmail: true }))}
+                className={`rounded-xl border-2 bg-background px-4 py-3 text-foreground focus:border-primary ${showConfirmError || showMatchError ? "border-destructive" : "border-border/50"}`}
+                required
+                aria-invalid={showConfirmError || showMatchError}
+              />
+              {showConfirmError && (
+                <p className="text-destructive text-sm">Please enter a valid email address.</p>
+              )}
+              {showMatchError && !showConfirmError && (
+                <p className="text-destructive text-sm">Email addresses do not match.</p>
+              )}
+            </div>
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="delete-understood"
+                checked={understood}
+                onCheckedChange={(checked) => setUnderstood(checked === true)}
+                className="mt-0.5 border-2 border-border"
+              />
+              <Label htmlFor="delete-understood" className="text-sm text-foreground cursor-pointer leading-tight">
+                I understand that deleting my account is permanent and cannot be undone.
+              </Label>
+            </div>
+            <Button
+              type="submit"
+              variant="destructive"
+              className="w-full rounded-full px-8 py-6 text-lg font-serif"
+              disabled={!canSubmit}
+            >
+              Request Account Deletion
+            </Button>
+          </form>
+        </section>
+
+        <section className="border-t border-border pt-6">
+          <h2 className="font-serif text-lg font-bold text-foreground mb-2">Need Help?</h2>
+          <p className="text-muted-foreground text-sm">
+            Contact us at:{" "}
+            <a href="mailto:support@cookinglegacy.online" className="text-primary font-medium hover:underline">
+              support@cookinglegacy.online
+            </a>
+          </p>
+        </section>
+      </main>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirm deletion request</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Submit a deletion request for <strong className="text-foreground">{email}</strong>? We will process it within 7 business days and notify you by email.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-foreground">Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirm}
+              disabled={loading}
+            >
+              {loading ? "Submitting…" : "Confirm"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+// Privacy Policy Page
+const PrivacyPolicyPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="privacy-policy-page">
+      {user ? <Navigation /> : (
+        <header className="border-b border-border/50 bg-card/50 sticky top-0 z-30">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <FamilyLogo size="sm" showText={true} />
+            <Link to="/login" className="text-sm font-medium text-primary hover:underline">Back to Login</Link>
+          </div>
+        </header>
+      )}
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Privacy Policy</h1>
+          <p className="text-muted-foreground">Effective Date: February 3, 2025</p>
+        </div>
+
+        <div className="space-y-6 text-foreground animate-slide-up">
+          <p className="text-base leading-relaxed text-muted-foreground">
+            Legacy Table (&quot;Legacy Table,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is a private, invite-only family app designed to help families preserve recipes, photos, and food traditions together. We are committed to protecting your privacy and handling your data with care.
+          </p>
+          <p className="text-base leading-relaxed text-muted-foreground">
+            This Privacy Policy explains how information is collected, used, and protected when you use the Legacy Table mobile application and related services.
+          </p>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">1. Information We Collect</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-3">We collect only the information necessary to provide the core functionality of the app.</p>
+            <h3 className="font-semibold text-lg text-foreground mb-2">Information You Provide</h3>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-4">
+              <li><strong className="text-foreground">Account information:</strong> name, email address, and password</li>
+              <li><strong className="text-foreground">Family content:</strong> recipes, photos, comments, notes, and cookbook collections</li>
+              <li><strong className="text-foreground">Invitations:</strong> email addresses or invite codes used to add family members</li>
+            </ul>
+            <h3 className="font-semibold text-lg text-foreground mb-2">Automatically Collected Information</h3>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li><strong className="text-foreground">App usage data:</strong> basic interactions such as feature usage and performance</li>
+              <li><strong className="text-foreground">Device information:</strong> device type, operating system version, and app version</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">We do not collect precise location data.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">2. How We Use Information</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We use your information solely to operate and improve Legacy Table, including to:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li>Create and manage private family spaces</li>
+              <li>Enable recipe sharing, comments, and photo uploads</li>
+              <li>Authenticate users and manage invitations</li>
+              <li>Maintain app performance, reliability, and security</li>
+              <li>Respond to support requests</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">We do not use your data for advertising purposes.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">3. Private, Invite-Only Design</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">Legacy Table is private by default.</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground">
+              <li>Family content is visible only to invited members of that family</li>
+              <li>There are no public profiles, public feeds, or searchable family content</li>
+              <li>Content is not shared outside your family unless you explicitly choose to export it</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">4. Data Sharing</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We do not sell, rent, or trade personal or family data.</p>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We may share limited data only:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground">
+              <li>With trusted service providers who help operate the app (such as cloud hosting and image storage), under strict confidentiality agreements</li>
+              <li>If required by law or to protect the safety and rights of users and the platform</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">5. Data Storage and Security</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We take reasonable measures to protect your information, including:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li>Secure authentication</li>
+              <li>Encrypted data transmission</li>
+              <li>Restricted access to user data</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">No system is perfectly secure, but we design Legacy Table with privacy and care as core principles.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">6. Data Retention and Deletion</h2>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground">
+              <li>Your data is retained for as long as your account is active</li>
+              <li>You may request account deletion at any time</li>
+              <li>When an account is deleted, associated personal data is removed or anonymized in accordance with applicable laws</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">7. Children&apos;s Privacy</h2>
+            <p className="text-base leading-relaxed text-muted-foreground">Legacy Table is intended for family use. We do not knowingly collect personal information from children under 13 without parental or guardian consent.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">8. Your Rights</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">Depending on your location, you may have rights to:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li>Access your personal data</li>
+              <li>Request correction or deletion</li>
+              <li>Withdraw consent where applicable</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">To make a request, contact us using the information below.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">9. Changes to This Policy</h2>
+            <p className="text-base leading-relaxed text-muted-foreground">We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">10. Contact Us</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">If you have questions or concerns about this Privacy Policy or your data, contact us at:</p>
+            <p className="text-base leading-relaxed text-foreground font-medium">Email: <a href="mailto:support@legacytable.app" className="text-primary hover:underline">support@legacytable.app</a></p>
+          </section>
+        </div>
+
+        {!user && (
+          <div className="mt-10 text-center">
+            <Button onClick={() => navigate("/login")} variant="outline" className="rounded-full">Back to Login</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 function App() {
   return (
@@ -3225,6 +3565,8 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/delete-account" element={<DeleteAccountPage />} />
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route path="/add-recipe" element={<ProtectedRoute><AddRecipePage /></ProtectedRoute>} />
               <Route path="/recipe/:id" element={<ProtectedRoute><RecipeDetailPage /></ProtectedRoute>} />

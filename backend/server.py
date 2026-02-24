@@ -319,6 +319,9 @@ class FamilyJoinRequest(BaseModel):
 class FamilyTransferKeeperRequest(BaseModel):
     new_keeper_id: str
 
+class DeleteAccountRequest(BaseModel):
+    email: EmailStr
+
 class FamilyMemberResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
@@ -1194,6 +1197,21 @@ async def transfer_keeper(
             await db.notifications.insert_many(notifications)
     
     return {"message": f"Keeper role successfully transferred to {new_keeper_name}"}
+
+# ===================== DELETE ACCOUNT =====================
+
+@api_router.post("/delete-account")
+async def delete_account_request(body: DeleteAccountRequest):
+    """Store account deletion request for processing."""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "email": body.email.lower(),
+        "status": "pending",
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.accountDeletionRequests.insert_one(doc)
+    logger.info("Account deletion request received for email=%s", body.email.lower())
+    return {"message": "Deletion request received. We will process it shortly."}
 
 # ===================== HEALTH CHECK =====================
 
