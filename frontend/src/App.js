@@ -1,9 +1,10 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext, useCallback } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link, useParams } from "react-router-dom";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { ChefHat, Utensils, Camera, Clock, Users, Flame, Heart, Plus, LogOut, Menu, X, Home, User, Search, Download, BookOpen, Moon, Sun, Edit, MessageCircle, Trash2, Send, Bell, Settings, Upload } from "lucide-react";
+import { ChefHat, Utensils, Camera, Clock, Users, Flame, Heart, Plus, LogOut, Menu, X, Home, User, Search, Download, BookOpen, Moon, Sun, Edit, MessageCircle, Trash2, Send, Bell, Settings, Upload, Copy, Crown, UserPlus } from "lucide-react";
+import * as familiesApi from "./api/families";
 import jsPDF from "jspdf";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -12,9 +13,68 @@ import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
+import { Checkbox } from "./components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "./components/ui/alert-dialog";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
+
+// Sanitize string for safe JSON: strip control chars, normalize line endings, ensure string
+function sanitizeForJson(value) {
+  if (value == null || value === "") return value === "" ? "" : null;
+  const s = String(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  return s;
+}
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value || "").trim());
+
+// Resize/compress a data URL image to reduce payload size and avoid truncation
+function compressDataUrl(dataUrl, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const w = img.width;
+      const h = img.height;
+      const scale = w > maxWidth ? maxWidth / w : 1;
+      const cw = Math.round(w * scale);
+      const ch = Math.round(h * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, cw, ch);
+      try {
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function compressPhotoList(photos) {
+  if (!Array.isArray(photos) || photos.length === 0) return [];
+  const out = [];
+  for (const p of photos) {
+    if (typeof p !== "string") continue;
+    out.push(p.startsWith("data:") ? await compressDataUrl(p) : p);
+  }
+  return out;
+}
 
 // Theme Context
 const ThemeContext = createContext(null);
@@ -121,8 +181,9 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Family Logo Component - HT Monogram with Crossed Spoon & Fork (French Creole Style)
+// Family Logo Component — app-logo (light) / app-logo-white (dark)
 const FamilyLogo = ({ size = "md", showText = true }) => {
+  const { isDark } = useTheme();
   const sizes = {
     sm: { container: "w-10 h-10", text: "text-lg" },
     md: { container: "w-12 h-12", text: "text-xl" },
@@ -130,95 +191,22 @@ const FamilyLogo = ({ size = "md", showText = true }) => {
     xl: { container: "w-24 h-24", text: "text-3xl" }
   };
   const s = sizes[size];
-  
+  const logoSrc = isDark
+    ? `${process.env.PUBLIC_URL || ""}/app-logo-white.png`
+    : `${process.env.PUBLIC_URL || ""}/app-logo.png`;
+
   return (
     <div className="flex items-center gap-3">
-      <div className={`${s.container} relative`}>
-        <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            {/* Caribbean terracotta gradient */}
-            <linearGradient id="creoleRing" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#D4704A" />
-              <stop offset="100%" stopColor="#A65835" />
-            </linearGradient>
-            {/* Antique gold for utensils */}
-            <linearGradient id="antiqueGold" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#C9A227" />
-              <stop offset="50%" stopColor="#B8860B" />
-              <stop offset="100%" stopColor="#996515" />
-            </linearGradient>
-          </defs>
-          
-          {/* Outer warm ring */}
-          <circle cx="50" cy="50" r="48" fill="url(#creoleRing)" />
-          
-          {/* Cream inner circle */}
-          <circle cx="50" cy="50" r="43" fill="#FBF7F2" />
-          
-          {/* Crossed Spoon - diagonal from top-left to bottom-right */}
-          <g transform="rotate(-45 50 50)">
-            {/* Spoon bowl */}
-            <ellipse cx="50" cy="18" rx="7" ry="10" fill="url(#antiqueGold)" />
-            {/* Spoon neck */}
-            <rect x="47" y="26" width="6" height="8" fill="url(#antiqueGold)" />
-            {/* Spoon handle */}
-            <rect x="48" y="32" width="4" height="50" rx="2" fill="url(#antiqueGold)" />
-          </g>
-          
-          {/* Crossed Fork - diagonal from top-right to bottom-left */}
-          <g transform="rotate(45 50 50)">
-            {/* Fork tines */}
-            <rect x="43" y="14" width="2.5" height="12" rx="1" fill="url(#antiqueGold)" />
-            <rect x="47" y="14" width="2.5" height="14" rx="1" fill="url(#antiqueGold)" />
-            <rect x="51" y="14" width="2.5" height="14" rx="1" fill="url(#antiqueGold)" />
-            <rect x="55" y="14" width="2.5" height="12" rx="1" fill="url(#antiqueGold)" />
-            {/* Fork base connecting tines */}
-            <rect x="43" y="26" width="14.5" height="6" rx="1" fill="url(#antiqueGold)" />
-            {/* Fork handle */}
-            <rect x="48" y="30" width="4" height="52" rx="2" fill="url(#antiqueGold)" />
-          </g>
-          
-          {/* Center circle for monogram */}
-          <circle cx="50" cy="50" r="20" fill="#FBF7F2" stroke="url(#antiqueGold)" strokeWidth="2" />
-          
-          {/* HT Monogram - elegant French Creole script */}
-          <text 
-            x="50" 
-            y="57" 
-            textAnchor="middle"
-            fontFamily="'Dancing Script', cursive" 
-            fontSize="26" 
-            fontWeight="700" 
-            fill="#4A3728"
-            style={{letterSpacing: '-1px'}}
-          >HT</text>
-          
-          {/* Decorative flourish curves - top */}
-          <path 
-            d="M 30 15 Q 50 8 70 15" 
-            fill="none" 
-            stroke="#4A7A5E" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          
-          {/* Decorative flourish curves - bottom */}
-          <path 
-            d="M 30 85 Q 50 92 70 85" 
-            fill="none" 
-            stroke="#4A7A5E" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          
-          {/* Gold accent dots */}
-          <circle cx="50" cy="5" r="3" fill="#C9A227" />
-          <circle cx="50" cy="95" r="3" fill="#C9A227" />
-        </svg>
+      <div className={`${s.container} relative flex shrink-0`}>
+        <img
+          src={logoSrc}
+          alt="Legacy Table"
+          className="w-full h-full object-contain"
+        />
       </div>
       {showText && (
         <div className="flex flex-col">
-          <span style={{fontFamily: "'Dancing Script', cursive"}} className={`${s.text} font-semibold text-foreground leading-tight`}>Honor Touré</span>
+          <span style={{ fontFamily: "'Dancing Script', cursive" }} className={`${s.text} font-semibold text-foreground leading-tight`}>Legacy Table</span>
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Family Recipes</span>
         </div>
       )}
@@ -325,7 +313,7 @@ const Navigation = () => {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2" data-testid="nav-logo">
               <FamilyLogo size="sm" showText={false} />
-              <span className="font-serif text-xl font-semibold text-foreground hidden sm:block">Honor Touré</span>
+              <span className="font-serif text-xl font-semibold text-foreground hidden sm:block">Legacy Table</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -361,6 +349,14 @@ const Navigation = () => {
               >
                 <BookOpen className="w-4 h-4" />
                 Family Cookbook
+              </Link>
+              <Link 
+                to="/family" 
+                className={`nav-link flex items-center gap-2 text-sm font-medium ${location.pathname === '/family' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                data-testid="nav-family"
+              >
+                <Users className="w-4 h-4" />
+                Family
               </Link>
             </div>
 
@@ -428,16 +424,27 @@ const Navigation = () => {
               </button>
 
               {/* User Avatar & Settings */}
-              <Link to="/settings" className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="nav-settings">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={getDisplayName()} className="w-8 h-8 rounded-full object-cover border-2 border-border" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
-                  </div>
+              <div className="flex items-center gap-2">
+                {user?.role && (
+                  <span 
+                    className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize"
+                    data-testid="nav-role-badge"
+                    title={user.role === "keeper" ? "Family keeper" : "Family member"}
+                  >
+                    {user.role}
+                  </span>
                 )}
-                <span className="text-sm font-medium text-foreground">{getDisplayName()}</span>
-              </Link>
+                <Link to="/settings" className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="nav-settings">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={getDisplayName()} className="w-8 h-8 rounded-full object-cover border-2 border-border" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-primary">{getDisplayName().charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-foreground">{getDisplayName()}</span>
+                </Link>
+              </div>
 
               <Button 
                 variant="ghost" 
@@ -512,6 +519,15 @@ const Navigation = () => {
             <span className="font-medium">Family Cookbook</span>
           </Link>
           <Link 
+            to="/family" 
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
+            data-testid="mobile-nav-family"
+          >
+            <Users className="w-5 h-5 text-primary" />
+            <span className="font-medium">Family</span>
+          </Link>
+          <Link 
             to="/settings" 
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
@@ -529,7 +545,14 @@ const Navigation = () => {
                 </div>
               )}
               <div>
-                <div className="font-medium">{getDisplayName()}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium">{getDisplayName()}</span>
+                  {user?.role && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                      {user.role}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">{user.email}</div>
               </div>
             </div>
@@ -598,7 +621,7 @@ const LoginPage = () => {
       <div className="auth-card animate-fade-in">
         <div className="text-center mb-8 flex flex-col items-center">
           <FamilyLogo size="lg" showText={false} />
-          <h1 className="font-serif text-3xl font-bold text-foreground mb-2 mt-4">Honor Touré Family</h1>
+          <h1 className="font-serif text-3xl font-bold text-foreground mb-2 mt-4">Legacy Table</h1>
           <p className="text-muted-foreground">Share your culinary heritage</p>
         </div>
 
@@ -612,7 +635,7 @@ const LoginPage = () => {
                 placeholder="Your name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
                 required={!isLogin}
                 data-testid="input-name"
               />
@@ -626,7 +649,7 @@ const LoginPage = () => {
               placeholder="your@email.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="input-email"
             />
@@ -639,7 +662,7 @@ const LoginPage = () => {
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="input-password"
             />
@@ -736,7 +759,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   useEffect(() => {
     fetchRecipes();
@@ -784,7 +807,7 @@ const HomePage = () => {
               <FamilyLogo size="xl" showText={false} />
             </div>
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4">
-              Honor Touré<br />Family Recipes
+              Legacy Table<br />Family Recipes
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
               Preserve and share our family's culinary traditions with love
@@ -845,6 +868,26 @@ const HomePage = () => {
             ))}
           </div>
         </div>
+
+        {/* Recipe scope copy (family vs legacy) */}
+        {!loading && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+            <p className="text-sm text-muted-foreground">
+              {user?.family_id ? "Showing family recipes." : "Showing legacy recipes."}
+            </p>
+            {!user?.family_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full text-primary border-primary"
+                onClick={() => navigate("/family")}
+                data-testid="create-join-family-cta"
+              >
+                Create a family or join with invite code
+              </Button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Recipe Grid */}
@@ -1007,16 +1050,32 @@ const AddRecipePage = () => {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/recipes`, {
-        ...formData,
-        ingredients: validIngredients
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
+      const photos = await compressPhotoList(formData.photos || []);
+      const payload = {
+        title: sanitizeForJson(formData.title),
+        ingredients: validIngredients.map((i) => sanitizeForJson(i)),
+        instructions: sanitizeForJson(formData.instructions),
+        story: sanitizeForJson(formData.story) || null,
+        photos,
+        cooking_time: formData.cooking_time ?? 30,
+        servings: formData.servings ?? 4,
+        category: sanitizeForJson(formData.category),
+        difficulty: formData.difficulty || "easy",
+      };
+      await axios.post(`${API}/recipes`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       toast.success("Recipe shared with the family!");
       navigate("/");
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to create recipe");
+      const detail = error.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.find((d) => d.msg)?.msg || detail?.[0]?.msg || "Failed to create recipe"
+        : detail || "Failed to create recipe";
+      toast.error(typeof msg === "string" ? msg : "Failed to create recipe");
     }
     setLoading(false);
   };
@@ -1081,16 +1140,7 @@ const AddRecipePage = () => {
                   data-testid="photo-input"
                 />
               </label>
-              <Button 
-                type="button" 
-                onClick={startCamera}
-                variant="outline"
-                className="rounded-xl px-6 py-8 border-2 border-dashed"
-                data-testid="take-photo-btn"
-              >
-                <Camera className="w-6 h-6 mr-2" />
-                Take Photo
-              </Button>
+             
             </div>
 
             {formData.photos.length > 0 && (
@@ -1120,7 +1170,7 @@ const AddRecipePage = () => {
               placeholder="e.g., Grandma's Special Jollof Rice"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-white/50 px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="input-title"
             />
@@ -1134,7 +1184,7 @@ const AddRecipePage = () => {
                 value={formData.category} 
                 onValueChange={(value) => setFormData({ ...formData, category: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="select-category">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="select-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1150,7 +1200,7 @@ const AddRecipePage = () => {
                 value={formData.difficulty} 
                 onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="select-difficulty">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="select-difficulty">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1172,7 +1222,7 @@ const AddRecipePage = () => {
                 min="1"
                 value={formData.cooking_time}
                 onChange={(e) => setFormData({ ...formData, cooking_time: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="input-time"
               />
             </div>
@@ -1184,7 +1234,7 @@ const AddRecipePage = () => {
                 min="1"
                 value={formData.servings}
                 onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="input-servings"
               />
             </div>
@@ -1200,7 +1250,7 @@ const AddRecipePage = () => {
                     placeholder={`Ingredient ${index + 1}`}
                     value={ingredient}
                     onChange={(e) => handleIngredientChange(index, e.target.value)}
-                    className="rounded-xl border-2 border-border/50"
+                    className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                     data-testid={`ingredient-${index}`}
                   />
                   {formData.ingredients.length > 1 && (
@@ -1237,7 +1287,7 @@ const AddRecipePage = () => {
               placeholder="Write the step-by-step cooking instructions..."
               value={formData.instructions}
               onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[200px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[200px] resize-y"
               required
               data-testid="input-instructions"
             />
@@ -1253,7 +1303,7 @@ const AddRecipePage = () => {
               placeholder="Share the story of this recipe... Where did it come from? Who passed it down? What memories does it hold for your family?"
               value={formData.story}
               onChange={(e) => setFormData({ ...formData, story: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[120px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[120px] resize-y"
               data-testid="input-story"
             />
             <p className="text-xs text-muted-foreground">Tell us about the history, traditions, or special memories connected to this dish.</p>
@@ -1301,6 +1351,7 @@ const EditRecipePage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const { token, user } = useAuth();
   const navigate = useNavigate();
 
@@ -1316,14 +1367,15 @@ const EditRecipePage = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const recipe = response.data;
-      
-      // Check if user is the author
-      if (recipe.author_id !== user?.id) {
+      setAccessDenied(false);
+
+      // Check if user is the author (or keeper can edit family recipes)
+      if (recipe.author_id !== user?.id && user?.role !== "keeper") {
         toast.error("You can only edit your own recipes");
         navigate(`/recipe/${id}`);
         return;
       }
-      
+
       setFormData({
         title: recipe.title,
         ingredients: recipe.ingredients.length > 0 ? recipe.ingredients : [""],
@@ -1336,8 +1388,12 @@ const EditRecipePage = () => {
         difficulty: recipe.difficulty
       });
     } catch (error) {
-      toast.error("Recipe not found");
-      navigate("/");
+      if (error.response?.status === 403) {
+        setAccessDenied(true);
+      } else {
+        toast.error("Recipe not found");
+        navigate("/");
+      }
     }
     setLoading(false);
   };
@@ -1394,17 +1450,32 @@ const EditRecipePage = () => {
 
     setSaving(true);
     try {
-      await axios.put(`${API}/recipes/${id}`, {
-        ...formData,
-        ingredients: validIngredients,
-        story: formData.story || null
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
+      const photos = await compressPhotoList(formData.photos || []);
+      const payload = {
+        title: sanitizeForJson(formData.title),
+        ingredients: validIngredients.map((i) => sanitizeForJson(i)),
+        instructions: sanitizeForJson(formData.instructions),
+        story: sanitizeForJson(formData.story) || null,
+        photos,
+        cooking_time: formData.cooking_time ?? 30,
+        servings: formData.servings ?? 4,
+        category: sanitizeForJson(formData.category),
+        difficulty: formData.difficulty || "easy",
+      };
+      await axios.put(`${API}/recipes/${id}`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       toast.success("Recipe updated successfully!");
       navigate(`/recipe/${id}`);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to update recipe");
+      const detail = error.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.find((d) => d.msg)?.msg || detail?.[0]?.msg || "Failed to update recipe"
+        : detail || "Failed to update recipe";
+      toast.error(typeof msg === "string" ? msg : "Failed to update recipe");
     }
     setSaving(false);
   };
@@ -1420,6 +1491,26 @@ const EditRecipePage = () => {
             <div className="skeleton h-40 rounded-xl" />
             <div className="skeleton h-12 rounded-xl" />
             <div className="skeleton h-32 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="edit-recipe-page">
+        <Navigation />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+          <div className="text-center py-12 px-4 rounded-2xl bg-muted/50 border border-border">
+            <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">You don't have access to this recipe</h2>
+            <p className="text-muted-foreground mb-6">Join the family to edit it, or it may be private to another family.</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button onClick={() => navigate("/")} className="rounded-full">Go home</Button>
+              {!user?.family_id && (
+                <Button variant="outline" onClick={() => navigate("/family")} className="rounded-full border-primary text-primary">Join a family</Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1482,7 +1573,7 @@ const EditRecipePage = () => {
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="rounded-xl border-2 border-border/50 bg-card px-4 py-3 text-lg focus:border-primary"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-3 text-lg focus:border-primary"
               required
               data-testid="edit-input-title"
             />
@@ -1496,7 +1587,7 @@ const EditRecipePage = () => {
                 value={formData.category} 
                 onValueChange={(value) => setFormData({ ...formData, category: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="edit-select-category">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="edit-select-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1512,7 +1603,7 @@ const EditRecipePage = () => {
                 value={formData.difficulty} 
                 onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
               >
-                <SelectTrigger className="rounded-xl border-2 border-border/50 h-12" data-testid="edit-select-difficulty">
+                <SelectTrigger className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12" data-testid="edit-select-difficulty">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1534,7 +1625,7 @@ const EditRecipePage = () => {
                 min="1"
                 value={formData.cooking_time}
                 onChange={(e) => setFormData({ ...formData, cooking_time: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="edit-input-time"
               />
             </div>
@@ -1546,7 +1637,7 @@ const EditRecipePage = () => {
                 min="1"
                 value={formData.servings}
                 onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 0 })}
-                className="rounded-xl border-2 border-border/50 h-12"
+                className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 h-12"
                 data-testid="edit-input-servings"
               />
             </div>
@@ -1562,7 +1653,7 @@ const EditRecipePage = () => {
                     placeholder={`Ingredient ${index + 1}`}
                     value={ingredient}
                     onChange={(e) => handleIngredientChange(index, e.target.value)}
-                    className="rounded-xl border-2 border-border/50"
+                    className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                     data-testid={`edit-ingredient-${index}`}
                   />
                   {formData.ingredients.length > 1 && (
@@ -1598,7 +1689,7 @@ const EditRecipePage = () => {
               id="instructions"
               value={formData.instructions}
               onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[200px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[200px] resize-y"
               required
               data-testid="edit-input-instructions"
             />
@@ -1614,7 +1705,7 @@ const EditRecipePage = () => {
               placeholder="Share the story of this recipe..."
               value={formData.story}
               onChange={(e) => setFormData({ ...formData, story: e.target.value })}
-              className="rounded-xl border-2 border-border/50 min-h-[120px] resize-y"
+              className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[120px] resize-y"
               data-testid="edit-input-story"
             />
           </div>
@@ -1653,6 +1744,7 @@ const RecipeDetailPage = () => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -1668,9 +1760,15 @@ const RecipeDetailPage = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRecipe(response.data);
+      setAccessDenied(false);
     } catch (error) {
-      toast.error("Recipe not found");
-      navigate("/");
+      if (error.response?.status === 403) {
+        setAccessDenied(true);
+        setRecipe(null);
+      } else {
+        toast.error("Recipe not found");
+        navigate("/");
+      }
     }
     setLoading(false);
   };
@@ -1727,9 +1825,15 @@ const RecipeDetailPage = () => {
       toast.success("Recipe deleted");
       navigate("/");
     } catch (error) {
-      toast.error("Failed to delete recipe");
+      if (error.response?.status === 403) {
+        toast.error("You can't delete this recipe");
+      } else {
+        toast.error("Failed to delete recipe");
+      }
     }
   };
+
+  const canDeleteRecipe = recipe && (user?.id === recipe.author_id || user?.role === "keeper");
 
   const getDifficultyClass = (difficulty) => {
     switch (difficulty?.toLowerCase()) {
@@ -1748,6 +1852,30 @@ const RecipeDetailPage = () => {
           <div className="skeleton h-96 rounded-3xl mb-8" />
           <div className="skeleton h-10 w-2/3 mb-4" />
           <div className="skeleton h-6 w-1/3" />
+        </div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="recipe-detail-page">
+        <Navigation />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+          <div className="text-center py-12 px-4 rounded-2xl bg-muted/50 border border-border">
+            <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">You don't have access to this recipe</h2>
+            <p className="text-muted-foreground mb-6">Join the family to see it, or it may be private to another family.</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button onClick={() => navigate("/")} className="rounded-full" data-testid="recipe-403-go-home">
+                Go home
+              </Button>
+              {!user?.family_id && (
+                <Button variant="outline" onClick={() => navigate("/family")} className="rounded-full border-primary text-primary" data-testid="recipe-403-join-family">
+                  Join a family
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1805,27 +1933,31 @@ const RecipeDetailPage = () => {
                   </span>
                 </div>
               </div>
-              {user?.id === recipe.author_id && (
+              {(user?.id === recipe.author_id || user?.role === "keeper") && (
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
-                    className="rounded-full"
-                    data-testid="edit-recipe-btn"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={handleDelete}
-                    className="rounded-full"
-                    data-testid="delete-recipe-btn"
-                  >
-                  Delete
-                  </Button>
+                  {user?.id === recipe.author_id && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
+                      className="rounded-full"
+                      data-testid="edit-recipe-btn"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  {canDeleteRecipe && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleDelete}
+                      className="rounded-full"
+                      data-testid="delete-recipe-btn"
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1919,7 +2051,7 @@ const RecipeDetailPage = () => {
                   placeholder="Share your thoughts about this recipe..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="rounded-xl border-2 border-border/50"
+                  className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
                   data-testid="comment-input"
                 />
               </div>
@@ -1974,6 +2106,424 @@ const RecipeDetailPage = () => {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Family page: Create / Join when no family; Family Settings when in a family
+const FamilyPage = () => {
+  const { user, token, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const [family, setFamily] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [createName, setCreateName] = useState("");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // 'leave' | 'delete' | 'remove-{id}' | 'transfer-{id}'
+
+  const refreshUser = async () => {
+    try {
+      const res = await axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      updateUser(res.data);
+    } catch {
+      toast.error("Failed to refresh profile");
+    }
+  };
+
+  const fetchFamilyData = useCallback(async () => {
+    if (!user?.family_id || !token) return;
+    setLoading(true);
+    try {
+      const [fam, mems] = await Promise.all([
+        familiesApi.getFamily(token, user.family_id),
+        familiesApi.getFamilyMembers(token, user.family_id),
+      ]);
+      setFamily(fam);
+      setMembers(mems);
+      setEditName(fam.name || "");
+      setEditDescription(fam.description || "");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to load family";
+      toast.error(msg);
+      setFamily(null);
+      setMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.family_id, token]);
+
+  useEffect(() => {
+    if (!user?.family_id) {
+      setLoading(false);
+      return;
+    }
+    fetchFamilyData();
+  }, [user?.family_id, fetchFamilyData]);
+
+  const handleCreateFamily = async (e) => {
+    e.preventDefault();
+    if (!createName.trim()) {
+      toast.error("Please enter a family name");
+      return;
+    }
+    setCreateSubmitting(true);
+    try {
+      await familiesApi.createFamily(token, { name: createName.trim(), description: createDescription.trim() || null });
+      toast.success("Family created! You're the Keeper.");
+      await refreshUser();
+      setCreateName("");
+      setCreateDescription("");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to create family";
+      toast.error(msg);
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  const handleJoinFamily = async (e) => {
+    e.preventDefault();
+    if (!joinCode.trim()) {
+      toast.error("Please enter an invite code");
+      return;
+    }
+    setJoinSubmitting(true);
+    try {
+      await familiesApi.joinFamily(token, { invite_code: joinCode.trim() });
+      toast.success("You joined the family!");
+      await refreshUser();
+      setJoinCode("");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Invalid or expired invite code";
+      toast.error(msg);
+    } finally {
+      setJoinSubmitting(false);
+    }
+  };
+
+  const handleCopyInviteCode = () => {
+    if (!family?.invite_code) return;
+    navigator.clipboard.writeText(family.invite_code);
+    toast.success("Invite code copied to clipboard");
+  };
+
+  const handleLeaveFamily = async () => {
+    if (!user?.family_id || !window.confirm("Are you sure you want to leave this family? You'll lose access to family recipes until you join again.")) return;
+    setActionLoading("leave");
+    try {
+      await familiesApi.leaveFamily(token, user.family_id);
+      toast.success("You left the family.");
+      await refreshUser();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not leave family";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteFamily = async () => {
+    if (!user?.family_id || !window.confirm("Permanently delete this family? All members will be removed and family recipes will become legacy. This cannot be undone.")) return;
+    setActionLoading("delete");
+    try {
+      await familiesApi.deleteFamily(token, user.family_id);
+      toast.success("Family deleted.");
+      await refreshUser();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not delete family";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!user?.family_id || !window.confirm("Remove this member from the family? They will lose access to family recipes.")) return;
+    setActionLoading(`remove-${memberId}`);
+    try {
+      await familiesApi.removeMember(token, user.family_id, memberId);
+      toast.success("Member removed.");
+      await fetchFamilyData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not remove member";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTransferKeeper = async (newKeeperId) => {
+    if (!user?.family_id || !window.confirm("Transfer the Keeper role to this member? You will become a Member and they will manage the family.")) return;
+    setActionLoading(`transfer-${newKeeperId}`);
+    try {
+      await familiesApi.transferKeeper(token, user.family_id, { new_keeper_id: newKeeperId });
+      toast.success("Keeper role transferred.");
+      await refreshUser();
+      await fetchFamilyData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not transfer role";
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!user?.family_id) return;
+    setEditSubmitting(true);
+    try {
+      await familiesApi.updateFamily(token, user.family_id, { name: editName.trim(), description: editDescription.trim() || null });
+      toast.success("Family updated.");
+      setEditMode(false);
+      await fetchFamilyData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to update family";
+      toast.error(msg);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const isKeeper = user?.role === "keeper";
+  const getMemberDisplayName = (m) => m.nickname || m.name || m.email || "Member";
+
+  if (!user?.family_id) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="family-page">
+        <Navigation />
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Family</h1>
+          <p className="text-muted-foreground mb-8">Create or join a family to share recipes.</p>
+
+          <div className="space-y-6">
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <UserPlus className="w-6 h-6 text-primary" />
+                  </div>
+                  <h2 className="font-serif text-xl font-semibold">Create a family</h2>
+                </div>
+                <form onSubmit={handleCreateFamily} className="space-y-4">
+                  <div>
+                    <Label htmlFor="create-name">Family name</Label>
+                    <Input
+                      id="create-name"
+                      placeholder="e.g. Smith Family"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 mt-1"
+                      data-testid="create-family-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="create-desc">Description (optional)</Label>
+                    <Textarea
+                      id="create-desc"
+                      placeholder="Our family recipe collection"
+                      value={createDescription}
+                      onChange={(e) => setCreateDescription(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 mt-1 min-h-[80px]"
+                      data-testid="create-family-description"
+                    />
+                  </div>
+                  <Button type="submit" className="rounded-full" disabled={createSubmitting} data-testid="create-family-btn">
+                    {createSubmitting ? "Creating…" : "Create family"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-primary" />
+                  </div>
+                  <h2 className="font-serif text-xl font-semibold">Join with invite code</h2>
+                </div>
+                <form onSubmit={handleJoinFamily} className="space-y-4">
+                  <div>
+                    <Label htmlFor="join-code">Invite code</Label>
+                    <Input
+                      id="join-code"
+                      placeholder="Enter code from your family Keeper"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 mt-1 font-mono"
+                      data-testid="join-family-code"
+                    />
+                  </div>
+                  <Button type="submit" variant="outline" className="rounded-full border-2 border-primary text-primary" disabled={joinSubmitting} data-testid="join-family-btn">
+                    {joinSubmitting ? "Joining…" : "Join family"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="family-page">
+      <Navigation />
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Family settings</h1>
+        <p className="text-muted-foreground mb-8">Manage your family and invite code.</p>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+          </div>
+        ) : family ? (
+          <div className="space-y-6">
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-6">
+                {editMode ? (
+                  <form onSubmit={handleSaveEdit} className="space-y-4">
+                    <Label>Family name</Label>
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30"
+                      data-testid="edit-family-name"
+                    />
+                    <Label>Description (optional)</Label>
+                    <Textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 min-h-[80px]"
+                      data-testid="edit-family-description"
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={editSubmitting} data-testid="save-family-edit">
+                        {editSubmitting ? "Saving…" : "Save"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => { setEditMode(false); setEditName(family.name); setEditDescription(family.description || ""); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h2 className="font-serif text-xl font-semibold">{family.name}</h2>
+                      {isKeeper && (
+                        <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="rounded-full" data-testid="edit-family-btn">
+                          <Edit className="w-4 h-4 mr-1" /> Edit
+                        </Button>
+                      )}
+                    </div>
+                    {family.description && <p className="text-muted-foreground text-sm mt-1">{family.description}</p>}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-6">
+                <h3 className="font-semibold mb-2">Invite code</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <code className="px-3 py-2 rounded-lg bg-muted font-mono text-sm">{family.invite_code}</code>
+                  <Button variant="outline" size="sm" onClick={handleCopyInviteCode} className="rounded-full" data-testid="copy-invite-code">
+                    <Copy className="w-4 h-4 mr-1" /> Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Share this code so others can join your family.</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-6">
+                <h3 className="font-semibold mb-4">Members</h3>
+                <ul className="space-y-3">
+                  {members.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between gap-2 flex-wrap py-2 border-b border-border/50 last:border-0">
+                      <div className="flex items-center gap-2">
+                        {m.avatar ? (
+                          <img src={m.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                            {getMemberDisplayName(m).charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="font-medium">{getMemberDisplayName(m)}</span>
+                        {m.role === "keeper" && <Crown className="w-4 h-4 text-primary" title="Keeper" />}
+                        <Badge variant="secondary" className="capitalize text-xs">{m.role}</Badge>
+                      </div>
+                      {isKeeper && m.id !== user.id && (
+                        <div className="flex items-center gap-1">
+                          {m.role === "member" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full text-xs"
+                              disabled={!!actionLoading}
+                              onClick={() => handleTransferKeeper(m.id)}
+                              data-testid={`transfer-keeper-${m.id}`}
+                            >
+                              {actionLoading === `transfer-${m.id}` ? "…" : "Make Keeper"}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive rounded-full text-xs"
+                            disabled={!!actionLoading}
+                            onClick={() => handleRemoveMember(m.id)}
+                            data-testid={`remove-member-${m.id}`}
+                          >
+                            {actionLoading === `remove-${m.id}` ? "…" : "Remove"}
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="rounded-full border-destructive text-destructive hover:bg-destructive/10"
+                disabled={!!actionLoading}
+                onClick={handleLeaveFamily}
+                data-testid="leave-family-btn"
+              >
+                {actionLoading === "leave" ? "Leaving…" : "Leave family"}
+              </Button>
+              {isKeeper && (
+                <Button
+                  variant="outline"
+                  className="rounded-full border-destructive text-destructive hover:bg-destructive/10"
+                  disabled={!!actionLoading}
+                  onClick={handleDeleteFamily}
+                  data-testid="delete-family-btn"
+                >
+                  {actionLoading === "delete" ? "Deleting…" : "Delete family"}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-8 text-center text-muted-foreground">
+              Could not load family. You may have left or been removed.
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
@@ -2089,12 +2639,49 @@ const SettingsPage = () => {
                     placeholder="Enter a nickname..."
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="rounded-xl border-2 border-border/50 max-w-sm"
+                    className="rounded-xl border-2 border-border/50 bg-background/50 dark:bg-muted/30 max-w-sm"
                     data-testid="nickname-input"
                   />
                   <p className="text-xs text-muted-foreground">
                     Your nickname will be shown instead of your full name on recipes and comments.
                   </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Family & Role */}
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Family & Role</h3>
+              <div className="space-y-3">
+                {user?.role && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Role</Label>
+                    <p className="text-foreground">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-primary/10 text-primary capitalize">
+                        {user.role}
+                      </span>
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm text-muted-foreground">Family</Label>
+                  {user?.family_id ? (
+                    <p className="text-foreground flex items-center gap-2 flex-wrap">
+                      <span>You're in a family.</span>
+                      <Button variant="link" className="p-0 h-auto text-primary font-medium" onClick={() => navigate("/family")} data-testid="settings-family-link">
+                        Family settings →
+                      </Button>
+                    </p>
+                  ) : (
+                    <p className="text-foreground flex items-center gap-2 flex-wrap">
+                      <span>You're not in a family.</span>
+                      <Button variant="link" className="p-0 h-auto text-primary font-medium" onClick={() => navigate("/family")} data-testid="settings-join-family-link">
+                        Create or join a family →
+                      </Button>
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -2298,7 +2885,7 @@ const CookbookPage = () => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(36);
       doc.setTextColor(74, 58, 51); // Warm charcoal
-      doc.text("Honor Touré", pageWidth / 2, 80, { align: "center" });
+      doc.text("Legacy Table", pageWidth / 2, 80, { align: "center" });
       doc.setFontSize(28);
       doc.text("Family Cookbook", pageWidth / 2, 100, { align: "center" });
       
@@ -2510,7 +3097,7 @@ const CookbookPage = () => {
       }
 
       // Save PDF
-      doc.save("Honor_Toure_Family_Cookbook.pdf");
+      doc.save("Legacy_Table_Family_Cookbook.pdf");
       toast.success("Cookbook generated successfully!");
     } catch (error) {
       console.error("PDF generation error:", error);
@@ -2640,7 +3227,335 @@ const CookbookPage = () => {
   );
 };
 
-// Import useParams
+// Delete Account Page
+const DeleteAccountPage = () => {
+  const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [understood, setUnderstood] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({ email: false, confirmEmail: false });
+  const { user } = useAuth();
+
+  const emailTrimmed = email.trim();
+  const confirmTrimmed = confirmEmail.trim();
+  const emailValid = isValidEmail(emailTrimmed);
+  const confirmEmailValid = isValidEmail(confirmTrimmed);
+  const emailsMatch = emailTrimmed.toLowerCase() === confirmTrimmed.toLowerCase();
+  const canSubmit = emailValid && confirmEmailValid && understood && emailsMatch;
+
+  const showEmailError = touched.email && emailTrimmed && !emailValid;
+  const showConfirmError = touched.confirmEmail && confirmTrimmed && !confirmEmailValid;
+  const showMatchError = touched.confirmEmail && confirmTrimmed && confirmEmailValid && !emailsMatch;
+
+  const handleRequestDeletion = (e) => {
+    e.preventDefault();
+    setTouched({ email: true, confirmEmail: true });
+    if (!emailValid || !confirmEmailValid) {
+      toast.error("Please enter valid email addresses.");
+      return;
+    }
+    if (!emailsMatch) {
+      toast.error("Email addresses do not match.");
+      return;
+    }
+    if (!understood) {
+      toast.error("Please confirm that you understand this action is permanent.");
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/delete-account`, { email: email.trim().toLowerCase() });
+      toast.success("Your deletion request has been received. We will process it within 7 business days and notify you by email.");
+      setEmail("");
+      setConfirmEmail("");
+      setUnderstood(false);
+      setShowConfirm(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Request failed");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col" data-testid="delete-account-page">
+      {user ? <Navigation /> : (
+        <header className="border-b border-border/50 bg-card/50 sticky top-0 z-30">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <FamilyLogo size="sm" showText={true} />
+            <Link to="/login" className="text-sm font-medium text-primary hover:underline">Back to Login</Link>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <h1 className="font-serif text-3xl font-bold text-foreground mb-8">Delete Account – Legacy Table</h1>
+
+        <section className="mb-8 animate-fade-in">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-2">Request Account Deletion</h2>
+          <p className="text-muted-foreground text-base leading-relaxed">
+            If you would like to delete your Legacy Table account, you can submit a request below.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-3">What This Means</h2>
+          <p className="text-muted-foreground text-sm mb-2">By requesting account deletion:</p>
+          <ul className="list-disc pl-6 space-y-1 text-muted-foreground text-sm">
+            <li>Your account will be permanently deleted</li>
+            <li>Your personal information will be removed</li>
+            <li>You will no longer be able to log in</li>
+            <li>This action cannot be undone</li>
+          </ul>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-3">Deletion Timeline</h2>
+          <ul className="list-disc pl-6 space-y-1 text-muted-foreground text-sm">
+            <li>Requests are processed within 7 business days</li>
+            <li>You will receive a confirmation email once completed</li>
+          </ul>
+        </section>
+
+        <section className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-lg mb-8">
+          <h2 className="font-serif text-xl font-bold text-foreground mb-5">Delete Account Form</h2>
+          <form onSubmit={handleRequestDeletion} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="delete-email" className="text-sm font-semibold text-foreground">Email Address</Label>
+              <Input
+                id="delete-email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+                className={`rounded-xl border-2 bg-background px-4 py-3 text-foreground focus:border-primary ${showEmailError ? "border-destructive" : "border-border/50"}`}
+                required
+                aria-invalid={showEmailError}
+              />
+              {showEmailError && (
+                <p className="text-destructive text-sm">Please enter a valid email address.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="delete-confirm-email" className="text-sm font-semibold text-foreground">Confirm Email Address</Label>
+              <Input
+                id="delete-confirm-email"
+                type="email"
+                placeholder="your@email.com"
+                value={confirmEmail}
+                onChange={(e) => setConfirmEmail(e.target.value)}
+                onBlur={() => setTouched((t) => ({ ...t, confirmEmail: true }))}
+                className={`rounded-xl border-2 bg-background px-4 py-3 text-foreground focus:border-primary ${showConfirmError || showMatchError ? "border-destructive" : "border-border/50"}`}
+                required
+                aria-invalid={showConfirmError || showMatchError}
+              />
+              {showConfirmError && (
+                <p className="text-destructive text-sm">Please enter a valid email address.</p>
+              )}
+              {showMatchError && !showConfirmError && (
+                <p className="text-destructive text-sm">Email addresses do not match.</p>
+              )}
+            </div>
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="delete-understood"
+                checked={understood}
+                onCheckedChange={(checked) => setUnderstood(checked === true)}
+                className="mt-0.5 border-2 border-border"
+              />
+              <Label htmlFor="delete-understood" className="text-sm text-foreground cursor-pointer leading-tight">
+                I understand that deleting my account is permanent and cannot be undone.
+              </Label>
+            </div>
+            <Button
+              type="submit"
+              variant="destructive"
+              className="w-full rounded-full px-8 py-6 text-lg font-serif"
+              disabled={!canSubmit}
+            >
+              Request Account Deletion
+            </Button>
+          </form>
+        </section>
+
+        <section className="border-t border-border pt-6">
+          <h2 className="font-serif text-lg font-bold text-foreground mb-2">Need Help?</h2>
+          <p className="text-muted-foreground text-sm">
+            Contact us at:{" "}
+            <a href="mailto:support@cookinglegacy.online" className="text-primary font-medium hover:underline">
+              support@cookinglegacy.online
+            </a>
+          </p>
+        </section>
+      </main>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirm deletion request</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Submit a deletion request for <strong className="text-foreground">{email}</strong>? We will process it within 7 business days and notify you by email.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-foreground">Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirm}
+              disabled={loading}
+            >
+              {loading ? "Submitting…" : "Confirm"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+// Privacy Policy Page
+const PrivacyPolicyPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="privacy-policy-page">
+      {user ? <Navigation /> : (
+        <header className="border-b border-border/50 bg-card/50 sticky top-0 z-30">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <FamilyLogo size="sm" showText={true} />
+            <Link to="/login" className="text-sm font-medium text-primary hover:underline">Back to Login</Link>
+          </div>
+        </header>
+      )}
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">Privacy Policy</h1>
+          <p className="text-muted-foreground">Effective Date: February 3, 2025</p>
+        </div>
+
+        <div className="space-y-6 text-foreground animate-slide-up">
+          <p className="text-base leading-relaxed text-muted-foreground">
+            Legacy Table (&quot;Legacy Table,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is a private, invite-only family app designed to help families preserve recipes, photos, and food traditions together. We are committed to protecting your privacy and handling your data with care.
+          </p>
+          <p className="text-base leading-relaxed text-muted-foreground">
+            This Privacy Policy explains how information is collected, used, and protected when you use the Legacy Table mobile application and related services.
+          </p>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">1. Information We Collect</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-3">We collect only the information necessary to provide the core functionality of the app.</p>
+            <h3 className="font-semibold text-lg text-foreground mb-2">Information You Provide</h3>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-4">
+              <li><strong className="text-foreground">Account information:</strong> name, email address, and password</li>
+              <li><strong className="text-foreground">Family content:</strong> recipes, photos, comments, notes, and cookbook collections</li>
+              <li><strong className="text-foreground">Invitations:</strong> email addresses or invite codes used to add family members</li>
+            </ul>
+            <h3 className="font-semibold text-lg text-foreground mb-2">Automatically Collected Information</h3>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li><strong className="text-foreground">App usage data:</strong> basic interactions such as feature usage and performance</li>
+              <li><strong className="text-foreground">Device information:</strong> device type, operating system version, and app version</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">We do not collect precise location data.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">2. How We Use Information</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We use your information solely to operate and improve Legacy Table, including to:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li>Create and manage private family spaces</li>
+              <li>Enable recipe sharing, comments, and photo uploads</li>
+              <li>Authenticate users and manage invitations</li>
+              <li>Maintain app performance, reliability, and security</li>
+              <li>Respond to support requests</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">We do not use your data for advertising purposes.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">3. Private, Invite-Only Design</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">Legacy Table is private by default.</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground">
+              <li>Family content is visible only to invited members of that family</li>
+              <li>There are no public profiles, public feeds, or searchable family content</li>
+              <li>Content is not shared outside your family unless you explicitly choose to export it</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">4. Data Sharing</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We do not sell, rent, or trade personal or family data.</p>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We may share limited data only:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground">
+              <li>With trusted service providers who help operate the app (such as cloud hosting and image storage), under strict confidentiality agreements</li>
+              <li>If required by law or to protect the safety and rights of users and the platform</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">5. Data Storage and Security</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">We take reasonable measures to protect your information, including:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li>Secure authentication</li>
+              <li>Encrypted data transmission</li>
+              <li>Restricted access to user data</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">No system is perfectly secure, but we design Legacy Table with privacy and care as core principles.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">6. Data Retention and Deletion</h2>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground">
+              <li>Your data is retained for as long as your account is active</li>
+              <li>You may request account deletion at any time</li>
+              <li>When an account is deleted, associated personal data is removed or anonymized in accordance with applicable laws</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">7. Children&apos;s Privacy</h2>
+            <p className="text-base leading-relaxed text-muted-foreground">Legacy Table is intended for family use. We do not knowingly collect personal information from children under 13 without parental or guardian consent.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">8. Your Rights</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">Depending on your location, you may have rights to:</p>
+            <ul className="list-disc pl-6 space-y-1 text-base text-muted-foreground mb-2">
+              <li>Access your personal data</li>
+              <li>Request correction or deletion</li>
+              <li>Withdraw consent where applicable</li>
+            </ul>
+            <p className="text-base leading-relaxed text-muted-foreground">To make a request, contact us using the information below.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">9. Changes to This Policy</h2>
+            <p className="text-base leading-relaxed text-muted-foreground">We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-bold text-foreground mb-3">10. Contact Us</h2>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">If you have questions or concerns about this Privacy Policy or your data, contact us at:</p>
+            <p className="text-base leading-relaxed text-foreground font-medium">Email: <a href="mailto:support@legacytable.app" className="text-primary hover:underline">support@legacytable.app</a></p>
+          </section>
+        </div>
+
+        {!user && (
+          <div className="mt-10 text-center">
+            <Button onClick={() => navigate("/login")} variant="outline" className="rounded-full">Back to Login</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 function App() {
   return (
@@ -2650,12 +3565,15 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/delete-account" element={<DeleteAccountPage />} />
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route path="/add-recipe" element={<ProtectedRoute><AddRecipePage /></ProtectedRoute>} />
               <Route path="/recipe/:id" element={<ProtectedRoute><RecipeDetailPage /></ProtectedRoute>} />
               <Route path="/recipe/:id/edit" element={<ProtectedRoute><EditRecipePage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/family" element={<ProtectedRoute><FamilyPage /></ProtectedRoute>} />
               <Route path="/cookbook" element={<ProtectedRoute><CookbookPage /></ProtectedRoute>} />
             </Routes>
           </BrowserRouter>
